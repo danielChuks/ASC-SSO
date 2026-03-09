@@ -83,3 +83,9 @@ They must use the same algorithms (e.g. SHA256, HKDF, HMAC) so the backend's che
 | `proof` | A signature that shows you know the key, without handing it over |
 
 The frontend crypto is what lets you create that fingerprint and signature without ever giving the key to the server.
+
+---
+
+## References
+
+- [BoquilaID/U2SSO](https://github.com/BoquilaID/U2SSO) — IC3 hackathon U2SSO implementation (blockchain registry, ZK proofs)
