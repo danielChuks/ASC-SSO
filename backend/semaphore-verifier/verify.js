@@ -12,19 +12,22 @@ async function main() {
     for await (const chunk of process.stdin) {
       input += chunk;
     }
-    const { proof, nullifierHash, merkleTreeRoot, scope, message } = JSON.parse(input);
+    const payload = JSON.parse(input);
 
-    const fullProof = {
-      proof,
-      publicSignals: {
-        merkleTreeRoot,
-        nullifierHash,
-        message: message || "0",
-        scope,
-      },
-    };
+    // Semaphore v4: proof can be full SemaphoreProof { points, nullifier, merkleTreeRoot, ... }
+    const semaphoreProof =
+      payload.proof?.points != null
+        ? payload.proof
+        : {
+            merkleTreeDepth: 20,
+            merkleTreeRoot: payload.merkleTreeRoot,
+            nullifier: payload.nullifierHash,
+            message: payload.message || "0",
+            scope: payload.scope,
+            points: payload.proof,
+          };
 
-    const verified = await verifyProof(fullProof);
+    const verified = await verifyProof(semaphoreProof);
     console.log(JSON.stringify({ verified }));
   } catch (err) {
     console.error(JSON.stringify({ verified: false, error: err.message }));

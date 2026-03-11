@@ -30,10 +30,9 @@ export async function generateSemaphoreProof(
     20 // merkle tree depth
   );
 
-  const ps = fullProof.publicSignals as { nullifierHash: bigint; merkleTreeRoot: bigint };
   return {
-    proof: JSON.stringify(fullProof.proof),
-    nullifierHash: ps.nullifierHash.toString(),
-    merkleTreeRoot: ps.merkleTreeRoot.toString(),
+    proof: JSON.stringify(fullProof),
+    nullifierHash: fullProof.nullifier,
+    merkleTreeRoot: fullProof.merkleTreeRoot,
   };
 }

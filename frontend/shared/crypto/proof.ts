@@ -12,9 +12,11 @@ export async function createProof(msk: string, spId: string, nonce: string): Pro
   const info = new TextEncoder().encode(spId);
   const childKey = await hkdfExtractExpand(keyMaterial.buffer, PROOF_SALT, info);
 
+  const keyBuffer = new ArrayBuffer(childKey.length);
+  new Uint8Array(keyBuffer).set(childKey);
   const cryptoKey = await crypto.subtle.importKey(
     "raw",
-    childKey.buffer,
+    keyBuffer,
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"]
