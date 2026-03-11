@@ -1,0 +1,9 @@
+{
+  "name": "semaphore-verifier",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@semaphore-protocol/proof": "^4.0.0"
+  }
+}

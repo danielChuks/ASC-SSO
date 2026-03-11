@@ -24,7 +24,7 @@ class Nullifier(Base):
 
     __tablename__ = "nullifiers"
 
-    __table_args__ = (UniqueConstraint("sp_id", "nullifier", name="uq_sp_nullifier"),)
+    __table_args__ = (UniqueConstraint("sp_id", "nullifier", name="uq_nullifiers_sp_nullifier"),)
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     sp_id = Column(String(512), nullable=False, index=True)
@@ -42,4 +42,36 @@ class Nonce(Base):
     sp_id = Column(String(512), nullable=False, index=True)
     expires_at = Column(DateTime, nullable=False)
     used = Column(Integer, default=0)  # 0 = unused, 1 = used
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class SpRegistration(Base):
+    """Stores pseudonym registrations per SP (per U2SSO paper)."""
+
+    __tablename__ = "sp_registrations"
+
+    __table_args__ = (
+        UniqueConstraint("sp_id", "nullifier", name="uq_sp_registrations_sp_nullifier"),
+        UniqueConstraint("sp_id", "pseudonym", name="uq_sp_registrations_sp_pseudonym"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    sp_id = Column(String(512), nullable=False, index=True)
+    pseudonym = Column(String(256), nullable=False, index=True)  # ϕ = public key (hex)
+    nullifier = Column(String(256), nullable=False, index=True)
+    commitment = Column(String(256), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AuthChallenge(Base):
+    """Stores auth challenges for Gauth flow (replay protection)."""
+
+    __tablename__ = "auth_challenges"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    sp_id = Column(String(512), nullable=False, index=True)
+    challenge = Column(String(256), nullable=False, index=True)
+    pseudonym = Column(String(256), nullable=False, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    used = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)

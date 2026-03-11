@@ -1,6 +1,6 @@
 # ShieldLogin Frontend Implementation Roadmap
 
-A step-by-step guide to build the Master Wallet and Demo SP frontends.
+Implementation guide for the Master Wallet (ZK-only flow).
 
 ---
 
@@ -11,24 +11,15 @@ A step-by-step guide to build the Master Wallet and Demo SP frontends.
 │                         FRONTEND COMPONENTS                                  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│   ┌─────────────────────┐              ┌─────────────────────┐              │
-│   │   Master Wallet      │              │   Demo SP           │              │
-│   │   (User app)         │              │   (Service Provider) │              │
-│   │                      │              │                     │              │
-│   │ • Generate msk       │   credential │ • ShieldLogin btn   │              │
-│   │ • Register           │ ───────────► │ • Get nonce         │              │
-│   │ • Create proof       │              │ • Call verify       │              │
-│   │ • Store credentials  │              │ • Show logged-in    │              │
-│   └─────────────────────┘              └─────────────────────┘              │
-│            │                                        │                        │
-│            │                                        │                        │
-│            └────────────────┬───────────────────────┘                        │
-│                             │                                                 │
-│                             ▼                                                 │
-│                    ┌─────────────────┐                                        │
-│                    │  Backend API    │                                        │
-│                    │  (FastAPI)      │                                        │
-│                    └─────────────────┘                                        │
+│   ┌─────────────────────┐                                                    │
+│   │   Master Wallet      │                                                    │
+│   │   (User app)         │                                                    │
+│   │                      │                                                    │
+│   │ • Create ZK identity │ ───────────► Backend API (FastAPI)                 │
+│   │ • Register with SP   │              • Registry (commitments, group)       │
+│   │ • Login (Gauth)      │              • Verify (ZK proof, auth)              │
+│   └─────────────────────┘                                                    │
+│                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -41,23 +32,34 @@ A step-by-step guide to build the Master Wallet and Demo SP frontends.
 | **Next.js** | React framework, SSR, routing |
 | **Tailwind CSS** | Styling |
 | **Lucide React** | Icons |
-| **Shared crypto** | Port hash-based logic to TypeScript/JavaScript |
+| **Semaphore** | ZK identity, group, proof |
+| **@noble/ed25519** | Gauth (child credential signing) |
+
+---
+
+## Implementation Status (ZK-only)
+
+| Phase | Status | Description |
+|-------|--------|-------------|
+| **1. Shared Crypto** | ✅ Done | Semaphore ZK, Gauth (Ed25519), HKDF |
+| **2. Master Wallet Scaffold** | ✅ Done | Next.js, Tailwind |
+| **3. Create Identity** | ✅ Done | Semaphore Identity + bootstrap seed |
+| **4. Register with SP** | ✅ Done | ZK proof via `POST /verify/register` |
+| **5. Login (Gauth)** | ✅ Done | Challenge + Ed25519 signature |
 
 ---
 
 ## Phase 1: Shared Crypto Library
 
-**Goal:** Reuse backend crypto logic in the browser.
+**Goal:** ZK and Gauth primitives in the browser.
 
 | Step | Task | Details |
 |------|------|---------|
-| 1.1 | Create `frontend/shared/crypto/` | Shared package or folder |
-| 1.2 | Port `commitment_from_secret` | SHA256 in browser: `crypto.subtle.digest` or `crypto-js` |
-| 1.3 | Port `derive_nullifier` | HKDF: use `crypto.subtle` or `@noble/hashes` |
-| 1.4 | Port `create_proof` | HMAC: `crypto.subtle.sign` or equivalent |
-| 1.5 | Port `generate_nonce` | `crypto.getRandomValues` → hex string |
+| 1.1 | Semaphore ZK | `generateSemaphoreProof(identity, group, sp_id)` |
+| 1.2 | Child credential | `deriveChildSecret(r, sp_id)` via HKDF |
+| 1.3 | Gauth | `getPseudonymWithSeed`, `signWithSeed` (Ed25519) |
 
-**Output:** Browser can compute commitment, nullifier, proof from msk.
+**Output:** Browser can generate ZK proofs and sign challenges.
 
 ---
 
@@ -76,35 +78,30 @@ A step-by-step guide to build the Master Wallet and Demo SP frontends.
 
 ---
 
-## Phase 3: Master Wallet — Registration Flow
+## Phase 3: Master Wallet — Create Identity
 
-**Goal:** User can create identity and register.
+**Goal:** User creates Semaphore identity and registers.
 
 | Step | Task | Details |
 |------|------|---------|
-| 3.1 | Generate msk | `crypto.getRandomValues()` → 32 bytes → hex or base64 |
-| 3.2 | Compute commitment | Call `commitment_from_secret(msk)` |
-| 3.3 | Call `POST /registry/register` | Send `{ commitment }` to backend |
-| 3.4 | Store msk securely | Encrypt with user password, save to localStorage/IndexedDB |
-| 3.5 | Registration UI | Page: "Create identity" → generate → register → store → success |
+| 3.1 | Create Semaphore Identity | `new Identity()` |
+| 3.2 | Register commitments | User + bootstrap seed → `POST /registry/register` |
+| 3.3 | Store identity | `shieldlogin_zk_identity`, `shieldlogin_r` in localStorage |
 
-**Output:** User can register a new identity.
+**Output:** User has ZK identity in anonymity set.
 
 ---
 
-## Phase 4: Master Wallet — Login to SP Flow
+## Phase 4: Master Wallet — Register & Login to SP
 
-**Goal:** User can authenticate to a site.
+**Goal:** User registers with SP (first time) and logs in (subsequent visits).
 
 | Step | Task | Details |
 |------|------|---------|
-| 4.1 | "Login to SP" UI | Input: SP URL or sp_id (e.g. `https://demo-sp.example.com`) |
-| 4.2 | Fetch nonce | `GET /verify/nonce?sp_id=...` |
-| 4.3 | Load msk | Decrypt from storage (user enters password if encrypted) |
-| 4.4 | Create proof + nullifier | `create_proof(msk, sp_id, nonce)`, `derive_nullifier(msk, sp_id)` |
-| 4.5 | Return credential to SP | PostMessage, URL params, or redirect with credential payload |
+| 4.1 | Register (first time) | Fetch group → ZK proof → `POST /verify/register` |
+| 4.2 | Login (subsequent) | Get challenge → sign with cskl → `POST /verify/auth` |
 
-**Output:** User can produce credential for any sp_id.
+**Output:** User can register and authenticate to any sp_id.
 
 ---
 
@@ -214,30 +211,25 @@ Phase 6 (SP scaffold) ──► Phase 7 (Button) ──► Phase 8 (Verify)
 
 ---
 
-## Project Structure (Target)
+## Project Structure (Current)
 
 ```
 frontend/
 ├── shared/
 │   └── crypto/
-│       ├── commitment.ts
-│       ├── nullifier.ts
-│       ├── proof.ts
+│       ├── semaphoreZK.ts    # ZK proof generation
+│       ├── gauth.ts          # Ed25519, pseudonym
+│       ├── childCredential.ts
+│       ├── hkdf.ts
+│       ├── utils.ts
 │       └── index.ts
-├── master-wallet/
-│   ├── app/
-│   │   ├── page.tsx          # Dashboard / Register
-│   │   ├── login/page.tsx    # Login to SP flow
-│   │   └── layout.tsx
-│   ├── components/
-│   └── lib/
-│       └── storage.ts
-└── demo-sp/
+└── master-wallet/
     ├── app/
-    │   ├── page.tsx          # Landing + ShieldLogin
+    │   ├── page.tsx          # Create identity
+    │   ├── login/page.tsx    # Register + Login to SP
     │   └── layout.tsx
-    └── components/
-        └── ShieldLoginButton.tsx
+    └── lib/
+        └── api.ts
 ```
 
 ---

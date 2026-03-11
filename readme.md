@@ -1,11 +1,14 @@
 # ShieldLogin (U2SSO)
 
+User-issued Unlinkable Single Sign-On — log in to sites without revealing your identity. Based on [ePrint 2025/618](https://eprint.iacr.org/2025/618).
+
+---
+
 ## The Core Idea
 
-You want to log in to websites **without** giving them your real identity. ShieldLogin does this by:
-
-1. Creating a secret only you know (the **master secret key**, `msk`)
-2. Deriving public values from it that prove you know `msk`, without revealing it
+1. You create a secret only you know (Semaphore identity + `r`)
+2. You derive public values that prove you know it, without revealing it
+3. Commitments live on-chain (Solidity); backend verifies proofs and stores registrations
 
 ---
 
@@ -13,79 +16,74 @@ You want to log in to websites **without** giving them your real identity. Shiel
 
 | Who | What they know |
 |-----|----------------|
-| **You (browser)** | Your `msk` – the secret only you have |
-| **Backend server** | Public values you send it – commitment, nullifier, proof – but **never** your `msk` |
-
-The backend is not trusted with your secret. It only checks that the values you send are valid.
+| **You (browser)** | Semaphore identity and `r` — secrets only you have |
+| **IdR (blockchain)** | Commitments only — no secrets |
+| **Backend** | ZK proof, nullifier, pseudonym — **never** your identity |
 
 ---
 
 ## Step-by-Step Flow
 
-### 1. Registration (create identity)
+### Phase 1: Create identity (Home page)
 
 ```
-You (browser):  msk = "random secret 123..."  (stored only on your device)
-You (browser):  commitment = SHA256(msk)      → "a1b2c3d4..."
-You (browser):  Send commitment to backend
-Backend:        Stores commitment in database
+You (browser):  Create Semaphore Identity + bootstrap seed
+You (browser):  POST /registry/register for both commitments
+Backend:        Calls IdR contract addCommitment() — stores on-chain
+You (browser):  Store identity, r in localStorage
 ```
 
-- The backend only ever sees `commitment`, not `msk`.
-- It cannot reverse `commitment` to get `msk`.
-
-### 2. Login to a site (e.g. demo.example.com)
+### Phase 2: Register with a site (one-time per SP)
 
 ```
-You (browser):  Get nonce from backend (a random challenge)
-You (browser):  nullifier = derive(msk, "demo.example.com")   → unique per site
-You (browser):  proof = sign(msk, nonce, "demo.example.com")  → proves you know msk
-You (browser):  Send nullifier, proof, commitment to backend
-Backend:        Checks: commitment exists? proof format OK? nullifier not reused?
-Backend:        If all OK → "logged in"
+You (browser):  GET /registry/group → fetches commitments from IdR contract
+You (browser):  Build Semaphore Group, generate ZK proof (membership + nullifier for sp_id)
+You (browser):  Derive cskl = HKDF(r, sp_id), ϕ = Ed25519 public key
+You (browser):  POST /verify/register (ϕ, nullifier_hash, proof, merkle_root)
+Backend:        Verifies ZK proof, stores (pseudonym, nullifier) in PostgreSQL
 ```
 
-- All crypto that uses `msk` happens in your browser.
-- The backend only checks the values you send; it never computes them from `msk`.
+### Phase 3: Login (subsequent visits)
+
+```
+You (browser):  GET /verify/auth/challenge (sp_id, pseudonym)
+You (browser):  Sign challenge with cskl (Ed25519)
+You (browser):  POST /verify/auth (ϕ, challenge, signature)
+Backend:        Verifies Ed25519; no ZK proof needed
+```
 
 ---
 
-## Why the Frontend Needs Crypto
+## Storage
 
-If the frontend didn't have crypto:
-
-- The backend would need `msk` to compute nullifier and proof.
-- That would mean sending `msk` to the server.
-- Anyone who compromises the server would get everyone's secrets.
-
-**So the design is:**
-
-- **Frontend:** Has `msk`, computes commitment, nullifier, proof.
-- **Backend:** Never sees `msk`, only verifies what you send.
+| Data | Where |
+|------|-------|
+| **Commitments** | On-chain (Solidity CommitmentRegistry) |
+| **sp_registrations** | PostgreSQL |
+| **auth_challenges** | PostgreSQL |
+| **identity, r** | Browser localStorage |
 
 ---
 
-## Why Both Sides Have Similar Code
+## Quick Start
 
-- **Backend (Python):** Defines the rules (how commitment, nullifier, proof are computed) and verifies them.
-- **Frontend (TypeScript):** Implements the same rules so it can produce values the backend will accept.
-
-They must use the same algorithms (e.g. SHA256, HKDF, HMAC) so the backend's checks succeed.
+1. **Deploy IdR contract** — See [contracts/README.md](contracts/README.md)
+2. **Backend** — PostgreSQL + `.env` with `IDR_CONTRACT_ADDRESS`, `ETH_RPC_URL`, `IDR_DEPLOYER_KEY`
+3. **Frontend** — `cd frontend/master-wallet && npm run dev`
+4. **Create identity** → **Register with SP** → **Login**
 
 ---
 
-## Simple Analogy
+## Documentation
 
-| Term | Meaning |
-|------|---------|
-| `msk` | Your house key (only you have it) |
-| `commitment` | A public "fingerprint" of that key (you can show it, but no one can get the key from it) |
-| `proof` | A signature that shows you know the key, without handing it over |
-
-The frontend crypto is what lets you create that fingerprint and signature without ever giving the key to the server.
+- [Problem Statement](docs/PROBLEM_STATEMENT.md) — ASC/U2SSO requirements from the paper
+- [ShieldLogin Overview](docs/SHIELDLOGIN_OVERVIEW.md) — Full system reference
+- [Current Solution & Gaps](docs/CURRENT_SOLUTION_AND_GAPS.md) — Implemented vs pending
+- [Testing](docs/TESTING.md) — How to test
 
 ---
 
 ## References
 
-- [BoquilaID/U2SSO](https://github.com/BoquilaID/U2SSO) — IC3 hackathon U2SSO implementation (blockchain registry, ZK proofs)
+- [Paper](https://eprint.iacr.org/2025/618) — Anonymous Self-Credentials and their Application to Single-Sign-On
+- [BoquilaID/U2SSO](https://github.com/BoquilaID/U2SSO) — IC3 hackathon implementation

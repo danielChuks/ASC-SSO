@@ -1,39 +1,64 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
+    ...init,
+    headers: { "Content-Type": "application/json", ...init?.headers },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { detail?: string }).detail || res.statusText);
+  }
+  return res.json() as Promise<T>;
+}
+
 export async function registerCommitment(commitment: string) {
-  const res = await fetch(`${API_URL}/api/v1/registry/register`, {
+  return apiFetch(`${API_URL}/api/v1/registry/register`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ commitment }),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || res.statusText);
-  }
+}
+
+/** Get anonymity group for ZK proof */
+export async function getAnonymityGroup() {
+  const res = await fetch(`${API_URL}/api/v1/registry/group`);
+  if (!res.ok) throw new Error("Failed to get group");
   return res.json();
 }
 
-export async function getNonce(spId: string) {
-  const res = await fetch(`${API_URL}/api/v1/verify/nonce?sp_id=${encodeURIComponent(spId)}`);
-  if (!res.ok) throw new Error("Failed to get nonce");
-  return res.json();
-}
-
-export async function verifyCredential(data: {
+/** U2SSO registration (ZK proof) */
+export async function registerWithSp(data: {
   sp_id: string;
-  nonce: string;
+  pseudonym: string;
+  nullifier_hash: string;
   proof: string;
-  nullifier: string;
-  commitment: string;
+  merkle_tree_root: string;
 }) {
-  const res = await fetch(`${API_URL}/api/v1/verify/credential`, {
+  return apiFetch(`${API_URL}/api/v1/verify/register`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || res.statusText);
-  }
-  return res.json();
+}
+
+/** Get challenge for Gauth authentication */
+export async function getAuthChallenge(
+  spId: string,
+  pseudonym: string
+): Promise<{ challenge: string; sp_id: string; expires_in: number }> {
+  return apiFetch<{ challenge: string; sp_id: string; expires_in: number }>(
+    `${API_URL}/api/v1/verify/auth/challenge?sp_id=${encodeURIComponent(spId)}&pseudonym=${encodeURIComponent(pseudonym)}`
+  );
+}
+
+/** U2SSO authentication (Gauth) */
+export async function authenticate(data: {
+  sp_id: string;
+  pseudonym: string;
+  challenge: string;
+  signature: string;
+}) {
+  return apiFetch(`${API_URL}/api/v1/verify/auth`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 }

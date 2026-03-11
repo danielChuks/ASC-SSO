@@ -39,60 +39,45 @@ A REST API that provides:
 - **Nonce Issuance** — Issue one-time challenges for authentication
 - **Nullifier Tracking** — Enforce one identity per user per SP (Sybil resistance)
 
-### 2. Cryptographic Primitives (Hash-based PoC)
+### 2. Cryptographic Primitives (ZK)
 
 | Function | Purpose |
 |----------|---------|
-| `commitment_from_secret(msk)` | Compute public commitment = SHA256(msk) |
-| `derive_nullifier(msk, sp_id)` | Derive unique nullifier per SP using HKDF |
-| `create_proof(msk, sp_id, nonce)` | Create HMAC proof over (nonce, sp_id) |
-| `verify_proof(...)` | Check proof format (full verification needs ZK in production) |
-| `generate_nonce()` | Generate random 64-char hex string |
+| Semaphore Identity | Self-generated identity; commitment = Poseidon hash |
+| Semaphore Group | Anonymity set from registry commitments |
+| `generateSemaphoreProof(identity, group, sp_id)` | ZK proof of membership + nullifier |
+| `deriveChildSecret(r, sp_id)` | HKDF for child credential (Gauth) |
+| `signWithSeed(cskl, challenge)` | Ed25519 signature for authentication |
 
-### 3. Database (PostgreSQL)
+### 3. Storage
 
-| Table | Purpose |
-|-------|---------|
-| **commitments** | Stores user commitments (public identities); one per user |
-| **nullifiers** | Stores used nullifiers per SP; prevents same user registering twice at one SP |
-| **nonces** | Stores issued nonces; prevents replay attacks; 5 min expiry |
+| Component | Purpose |
+|-----------|---------|
+| **IdR (commitments)** | On-chain only — Solidity CommitmentRegistry; stores Semaphore commitments for anonymity set |
+| **sp_registrations** | PostgreSQL; pseudonym, nullifier per SP; Sybil resistance |
+| **auth_challenges** | PostgreSQL; one-time challenges for Gauth; 5 min expiry |
+
+Commitments require `IDR_CONTRACT_ADDRESS`, `ETH_RPC_URL`, and `IDR_DEPLOYER_KEY` in `.env`. See [contracts/README.md](../contracts/README.md).
 
 ---
 
-## Authentication Flow
+## U2SSO Flow (per Paper)
 
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   User      │     │  Backend    │     │  SP (Site)  │
-└──────┬──────┘     └──────┬──────┘     └──────┬──────┘
-       │                   │                   │
-       │  1. Register      │                   │
-       │  commitment ────►│                   │
-       │                   │                   │
-       │                   │  2. Get nonce ◄───│
-       │                   │  (sp_id)          │
-       │                   │                   │
-       │  3. Create proof, nullifier           │
-       │  (from msk + nonce + sp_id)           │
-       │                   │                   │
-       │  4. Send proof, nullifier, commitment │
-       │  ──────────────────────────────────►│
-       │                   │                   │
-       │                   │  5. Verify ◄───────│
-       │                   │  (check all)      │
-       │                   │                   │
-       │                   │  6. Success ──────►│
-       │                   │                   │
-```
+### Registration (one-time per SP)
 
-**Step-by-step:**
+1. User fetches anonymity group from `GET /registry/group`
+2. User builds Semaphore Group, generates ZK proof (π, nullifier_hash, merkle_root)
+3. User derives cskl = HKDF(r, sp_id), ϕ = Ed25519 public key
+4. User sends (ϕ, nullifier_hash, proof, merkle_tree_root) to `POST /verify/register`
+5. Backend verifies ZK proof, stores in `sp_registrations`
 
-1. **Register** — User generates msk, computes commitment, sends to backend. Backend stores in `commitments`.
-2. **Get nonce** — SP requests nonce from backend for its `sp_id`. Backend generates, stores in `nonces`, returns to SP.
-3. **Create proof** — User derives nullifier and proof from msk + sp_id + nonce (client-side).
-4. **Send to SP** — User sends proof, nullifier, commitment to the SP.
-5. **Verify** — SP sends these to backend. Backend checks: commitment exists, proof format valid, nullifier not used, nonce valid.
-6. **Success** — Backend stores nullifier, marks nonce used, returns success. SP logs user in.
+### Authentication (repeated visits)
+
+1. User derives cskl, ϕ from stored r
+2. User gets challenge from `GET /verify/auth/challenge`
+3. User signs challenge with cskl (Ed25519)
+4. User sends (ϕ, challenge, signature) to `POST /verify/auth`
+5. Backend verifies Ed25519 signature; no ASC proof needed
 
 ---
 
@@ -105,8 +90,11 @@ A REST API that provides:
 | GET | `/ready` | Readiness check |
 | POST | `/api/v1/registry/register` | Register a commitment |
 | GET | `/api/v1/registry/check/{commitment}` | Check if commitment exists |
-| GET | `/api/v1/verify/nonce?sp_id=...` | Get nonce (5 min TTL) |
-| POST | `/api/v1/verify/credential` | Verify credential |
+| GET | `/api/v1/registry/group` | Get anonymity set (Semaphore commitments) for ZK |
+| POST | `/api/v1/verify/register` | U2SSO registration (ZK proof, one-time per SP) |
+| GET | `/api/v1/verify/auth/challenge?sp_id=...&pseudonym=...` | Get challenge for auth |
+| POST | `/api/v1/verify/auth` | U2SSO authentication (Gauth) |
+| POST | `/api/v1/verify/credential` | Legacy single-flow (backward compat) |
 | GET | `/api/v1/auth/config` | OIDC config (placeholder) |
 | GET | `/api/v1/auth/authorize` | SIOP authorize (placeholder) |
 | POST | `/api/v1/auth/token` | Token endpoint (placeholder) |
@@ -117,15 +105,15 @@ A REST API that provides:
 
 ### Commitment
 
-A **commitment** is the public representation of a user's master identity. It is computed as `SHA256(msk)` — a one-way hash. The backend stores it but cannot reverse it to get the msk. Same msk always produces the same commitment.
+A **commitment** is the public representation of a user's master identity. We use Semaphore (Poseidon hash). The backend stores it in the registry and includes it in the anonymity set for ZK proofs. The commitment is never revealed in the proof.
 
 ### Nullifier
 
-A **nullifier** is a value derived from (msk, sp_id) that is unique per user per SP. It enables Sybil resistance: each user can register only once per SP. If they try again with the same nullifier, the backend rejects. Different SPs get different nullifiers from the same msk, so activity is not linkable across SPs.
+A **nullifier** is a value from the Semaphore ZK proof (scope = sp_id) that is unique per user per SP. It enables Sybil resistance: each user can register only once per SP. Different SPs get different nullifiers, so activity is not linkable across SPs.
 
 ### Proof
 
-A **proof** is evidence that the user knows the msk. In our PoC it is an HMAC over (nonce, sp_id). The nonce ensures the proof is fresh and prevents replay. In production, this would be a Zero-Knowledge proof.
+A **proof** is a Semaphore ZK proof that proves membership in the anonymity set without revealing which commitment. The proof proves "I am one of the registered users" and binds the nullifier to sp_id.
 
 ### Sybil Resistance
 
@@ -133,7 +121,7 @@ A **proof** is evidence that the user knows the msk. In our PoC it is an HMAC ov
 
 ### Unlinkability
 
-**Unlinkability** means different SPs cannot tell if two logins came from the same user. We derive different nullifiers per sp_id, so each SP sees a different value. Colluding SPs could theoretically link via the commitment; full unlinkability requires ZK (future).
+**Unlinkability** means different SPs cannot tell if two logins came from the same user. The ZK proof hides the commitment; different nullifiers per sp_id ensure unlinkability across SPs.
 
 ---
 
@@ -148,21 +136,34 @@ rotaion-virtual-hk/
 │   │   ├── database.py          # SQLAlchemy, PostgreSQL
 │   │   ├── api/routes/
 │   │   │   ├── health.py        # Health checks
-│   │   │   ├── registry.py      # Register, check commitment
-│   │   │   ├── verify.py        # Nonce, credential verification
-│   │   │   └── auth.py         # OIDC placeholders
+│   │   │   ├── registry.py      # IdR — register, check, group (on-chain)
+│   │   │   ├── verify.py        # ZK registration, auth
+│   │   │   └── auth.py          # OIDC placeholders
+│   │   ├── services/
+│   │   │   └── idr_contract.py  # Web3 client for CommitmentRegistry
 │   │   ├── core/crypto/
-│   │   │   └── hash_based.py   # Commitment, nullifier, proof
+│   │   │   └── hash_based.py    # Legacy (hash-based PoC)
 │   │   └── models/
-│   │       └── registry.py     # Commitment, Nullifier, Nonce models
+│   │       └── registry.py      # SpRegistration, AuthChallenge, etc.
+│   ├── semaphore-verifier/      # Node.js ZK proof verification
 │   ├── requirements.txt
 │   ├── .env.example
-│   ├── test_flow.py            # Automated test script
+│   └── README.md
+├── contracts/
+│   ├── contracts/
+│   │   └── CommitmentRegistry.sol  # On-chain IdR
+│   ├── scripts/deploy.js
+│   ├── hardhat.config.js
 │   └── README.md
 ├── docs/
 │   ├── SHIELDLOGIN_OVERVIEW.md  # This document
+│   ├── PROBLEM_STATEMENT.md     # ASC/U2SSO requirements
+│   ├── CURRENT_SOLUTION_AND_GAPS.md
+│   ├── FRONTEND_ROADMAP.md
 │   └── TESTING.md              # How to test
-├── frontend/                   # (To be built)
+├── frontend/
+│   ├── shared/crypto/           # Semaphore ZK, Gauth, HKDF
+│   └── master-wallet/           # Next.js app (create identity + login)
 └── readme.md
 ```
 
@@ -172,18 +173,18 @@ rotaion-virtual-hk/
 
 | Component | Status |
 |-----------|--------|
-| Master Wallet (frontend) | Not started |
-| Demo SP (frontend) | Not started |
+| Master Wallet (frontend) | ✅ Built — ZK identity, registration, login |
+| Revocation/update | ❌ Not implemented |
 | OIDC/SIOP auth flow | Placeholder only |
-| BLS / ZK crypto | Future; for production privacy |
+| Blockchain IdR | ✅ Required — Solidity CommitmentRegistry (on-chain only) |
 
 ---
 
 ## Next Steps
 
-1. **Master Wallet** — Frontend app for users to generate msk, register commitment, create proof/nullifier
-2. **Demo SP** — Example site with ShieldLogin button that calls verify endpoint
-3. **BLS/ZK** (optional) — Replace hash-based crypto for production-grade unlinkability
+1. **Revocation/update** — Allow users to revoke or change pseudonyms at an SP
+2. **End-to-end verification** — Ensure Semaphore verifier path and dependencies work
+3. **Blockchain IdR** — Required; see [contracts/README.md](../contracts/README.md) for deployment
 
 ---
 

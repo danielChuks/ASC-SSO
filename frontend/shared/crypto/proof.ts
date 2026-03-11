@@ -1,4 +1,5 @@
 import { hkdfExtractExpand } from "./hkdf";
+import { bytesToHex } from "./utils";
 
 const PROOF_SALT = new TextEncoder().encode("shieldlogin-proof-v1");
 
@@ -22,7 +23,5 @@ export async function createProof(msk: string, spId: string, nonce: string): Pro
   const message = new TextEncoder().encode(`${nonce}:${spId}`);
   const signature = await crypto.subtle.sign("HMAC", cryptoKey, message);
 
-  return Array.from(new Uint8Array(signature))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  return bytesToHex(new Uint8Array(signature));
 }

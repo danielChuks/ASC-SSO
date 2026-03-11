@@ -2,5 +2,14 @@
   "name": "@shieldlogin/crypto",
   "version": "0.1.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@noble/ed25519": "^3.0.0",
+    "@semaphore-protocol/group": "^4.14.2",
+    "@semaphore-protocol/identity": "^4.14.2",
+    "@semaphore-protocol/proof": "^4.14.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
 }

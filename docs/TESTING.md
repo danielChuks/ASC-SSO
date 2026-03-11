@@ -1,21 +1,37 @@
-# How to Test the ShieldLogin Backend
+# How to Test ShieldLogin
 
-This guide explains how to test the backend API for the U2SSO credential flow.
+This guide explains how to test the U2SSO flow (ZK registration + Gauth login).
 
 ---
 
 ## Prerequisites
 
-1. **Start the backend server**
+1. **IdR contract** — Deploy CommitmentRegistry; see [contracts/README.md](../contracts/README.md). Add `IDR_CONTRACT_ADDRESS`, `ETH_RPC_URL`, `IDR_DEPLOYER_KEY` to `backend/.env`. Keep `npx hardhat node` running.
+
+2. **Backend**
    ```bash
    cd backend
    source venv/bin/activate   # or: source .venv/bin/activate
+   pip install -r requirements.txt
    uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
    ```
 
-2. **Database** — Ensure PostgreSQL is running and `DATABASE_URL` is set in `backend/.env`
+3. **Semaphore verifier** (for ZK proof verification)
+   ```bash
+   cd backend/semaphore-verifier
+   npm install
+   ```
 
-3. **Base URL** — All examples use `http://localhost:8000`
+4. **Database** — PostgreSQL running, `DATABASE_URL` in `backend/.env`
+
+5. **Frontend**
+   ```bash
+   cd frontend/master-wallet
+   npm install
+   npm run dev
+   ```
+
+6. **Base URL** — Backend: `http://localhost:8000`, Frontend: `http://localhost:3000`
 
 ---
 
@@ -23,183 +39,87 @@ This guide explains how to test the backend API for the U2SSO credential flow.
 
 | Term | Description |
 |------|-------------|
-| **msk** | Master secret key — the user's root secret. Never sent to the backend. Used to derive commitment, nullifier, and proof. |
-| **commitment** | Public hash of msk (`SHA256(msk)`). Stored in the Identity Registry. |
-| **nullifier** | Per-SP value derived from msk. Prevents Sybil attacks (one identity per SP). |
-| **proof** | HMAC over (nonce, sp_id) proving the user knows msk. Created per auth attempt. |
-| **nonce** | One-time challenge from the backend. Expires in 5 minutes. |
+| **Identity** | Semaphore identity (trapdoor, nullifier, commitment). Stored client-side. |
+| **commitment** | Poseidon hash from Semaphore. Stored in registry; part of anonymity set. |
+| **nullifier** | From ZK proof (scope = sp_id). Prevents Sybil attacks (one identity per SP). |
+| **proof** | Semaphore ZK proof of membership in anonymity set. |
+| **pseudonym (ϕ)** | Ed25519 public key from child credential. Per-SP identifier. |
 
 ---
 
 ## Test Flow Overview
 
-The full authentication flow has 4 steps:
-
-1. **Register** — User registers their commitment (public identity) in the Identity Registry
-2. **Get nonce** — Service Provider requests a one-time challenge from the backend
-3. **Create proof** — User creates proof + nullifier from their master secret
-4. **Verify** — SP sends proof to backend; backend validates and stores nullifier
+1. **Create identity** — User creates Semaphore identity, registers commitments on-chain (IdR contract)
+2. **Register with SP** — User fetches group from IdR, generates ZK proof, sends to `POST /verify/register`
+3. **Login** — User gets challenge, signs with child credential, sends to `POST /verify/auth`
 
 ---
 
-## Method 1: Automated Python Script
+## Method 1: End-to-End via Master Wallet (Recommended)
 
-The simplest way to test the full flow:
+1. Open `http://localhost:3000`
+2. Click **Create Identity** — creates Semaphore identity, registers in backend
+3. Click **Login to a Site**
+4. Enter SP URL (e.g. `https://demo.example.com`)
+5. Click **Register with SP (first time)** — generates ZK proof, registers
+6. Click **Login (subsequent visits)** — Gauth signature, authenticates
 
-```bash
-cd backend
-pip install -r requirements.txt
-python test_flow.py
-```
-
-**What it does:**
-- Registers a test commitment
-- Gets a nonce
-- Creates proof and nullifier using the crypto module
-- Verifies the credential
-- Tests Sybil resistance (second attempt with same nullifier is rejected)
-
-**Expected output:** `✅ All tests passed!`
+**Expected:** Success messages at each step.
 
 ---
 
-## Method 2: Manual Testing with curl
+## Method 2: Manual API Testing
 
-Follow these steps in order.
-
-### Step 1: Generate commitment and nullifier
-
-*Use the same `msk` value in all steps below.*
+### Registry endpoints
 
 ```bash
-cd backend
-python3 -c "
-from app.core.crypto import commitment_from_secret, derive_nullifier
-msk = 'my-secret-key'
-sp_id = 'https://demo.example.com'
-print('commitment:', commitment_from_secret(msk))
-print('nullifier:', derive_nullifier(msk, sp_id))
-"
-```
-
-Save the `commitment` and `nullifier` values.
-
-### Step 2: Register the commitment
-
-```bash
+# Register a commitment (e.g. from Semaphore Identity)
 curl -X POST http://localhost:8000/api/v1/registry/register \
   -H "Content-Type: application/json" \
-  -d '{"commitment": "PASTE_COMMITMENT_HERE"}'
+  -d '{"commitment": "1234567890123456789012345678901234567890123456789012345678901234"}'
+
+# Get anonymity group (for ZK proof)
+curl "http://localhost:8000/api/v1/registry/group"
 ```
 
-Expected: `{"id":"...","commitment":"...","status":"registered"}`
+### ZK registration (requires valid ZK proof from frontend)
 
-### Step 3: Get a nonce
+The `POST /verify/register` endpoint expects a Semaphore ZK proof. Use the Master Wallet to generate and send it.
 
-```bash
-curl "http://localhost:8000/api/v1/verify/nonce?sp_id=https://demo.example.com"
-```
-
-Expected: `{"nonce":"...","sp_id":"https://demo.example.com","expires_in":300}`
-
-Copy the `nonce` value.
-
-### Step 4: Generate the proof
-
-*Use the same `msk` as in Step 1. Replace `PASTE_NONCE_FROM_STEP3` with the nonce from Step 3.*
+### Auth flow (after registration)
 
 ```bash
-python3 -c "
-from app.core.crypto import create_proof
-msk = 'my-secret-key'
-sp_id = 'https://demo.example.com'
-nonce = 'PASTE_NONCE_FROM_STEP3'
-print(create_proof(msk, sp_id, nonce))
-"
-```
+# Get challenge (replace PSEUDONYM with hex Ed25519 public key)
+curl "http://localhost:8000/api/v1/verify/auth/challenge?sp_id=https://demo.example.com&pseudonym=PSEUDONYM_HEX"
 
-Copy the proof value.
-
-### Step 5: Verify the credential
-
-```bash
-curl -X POST http://localhost:8000/api/v1/verify/credential \
+# Authenticate (replace with values from challenge + signature)
+curl -X POST http://localhost:8000/api/v1/verify/auth \
   -H "Content-Type: application/json" \
-  -d '{
-    "sp_id": "https://demo.example.com",
-    "nonce": "PASTE_NONCE",
-    "proof": "PASTE_PROOF",
-    "nullifier": "PASTE_NULLIFIER",
-    "commitment": "PASTE_COMMITMENT"
-  }'
+  -d '{"sp_id":"https://demo.example.com","pseudonym":"...","challenge":"...","signature":"..."}'
 ```
-
-Expected: `{"verified":true,"message":"Credential verified successfully"}`
 
 ---
 
-## Method 3: Swagger UI (Interactive Docs)
+## Method 3: Swagger UI
 
-Open **http://localhost:8000/docs** and follow these steps:
+Open **http://localhost:8000/docs** to explore endpoints:
 
-### Step 1: Register commitment
-
-- Endpoint: `POST /api/v1/registry/register`
-- Request body:
-  ```json
-  {"commitment": "ecd71870d1963316a97e3ac3408c9835ad8cf0f3c1bc703527c30265534f75ae"}
-  ```
-- *(This commitment is for msk `test123`. For a custom msk, run: `python3 -c "from app.core.crypto import commitment_from_secret; print(commitment_from_secret('your-msk'))"`)*
-
-### Step 2: Get nonce
-
-- Endpoint: `GET /api/v1/verify/nonce`
-- Add parameter: `sp_id` = `https://demo.example.com`
-- Copy the `nonce` from the response
-
-### Step 3: Generate proof and nullifier
-
-Run in terminal (replace `PASTE_NONCE` with the nonce from Step 2):
-
-```bash
-cd backend
-python3 -c "
-from app.core.crypto import derive_nullifier, create_proof
-msk = 'test123'
-sp_id = 'https://demo.example.com'
-nonce = 'PASTE_NONCE'
-print('nullifier:', derive_nullifier(msk, sp_id))
-print('proof:', create_proof(msk, sp_id, nonce))
-"
-```
-
-### Step 4: Verify credential
-
-- Endpoint: `POST /api/v1/verify/credential`
-- Request body (paste values from Steps 1–3):
-  ```json
-  {
-    "sp_id": "https://demo.example.com",
-    "nonce": "<from Step 2>",
-    "proof": "<from Step 3>",
-    "nullifier": "<from Step 3>",
-    "commitment": "ecd71870d1963316a97e3ac3408c9835ad8cf0f3c1bc703527c30265534f75ae"
-  }
-  ```
-- Expected: `{"verified": true, "message": "Credential verified successfully"}`
+- `POST /api/v1/registry/register` — Register commitment
+- `GET /api/v1/registry/group` — Get anonymity set
+- `POST /api/v1/verify/register` — ZK registration (needs proof from frontend)
+- `GET /api/v1/verify/auth/challenge` — Get auth challenge
+- `POST /api/v1/verify/auth` — Authenticate with signature
 
 ---
 
 ## Validation Tests (Error Cases)
 
-Verify the backend correctly rejects invalid requests:
-
 | Test | How to trigger | Expected response |
 |------|----------------|-------------------|
-| Unknown commitment | Use a random commitment string | `400` — "Commitment not found in registry" |
-| Duplicate nullifier | Run verify twice with same nullifier (get new nonce each time) | `400` — "Nullifier already used for this SP" |
-| Reused nonce | Use same nonce in two verify requests | `400` — "Nonce already used (replay attack)" |
-| Expired nonce | Wait 5+ minutes after getting nonce, then verify | `400` — "Nonce expired" |
+| Invalid ZK proof | Send malformed proof to `/verify/register` | `400` — "Invalid ZK proof" |
+| Duplicate nullifier | Register twice with same SP | `400` — "Nullifier already used for this SP" |
+| Unregistered pseudonym | Get challenge for unknown pseudonym | `400` — "Pseudonym not registered for this SP" |
+| Invalid signature | Wrong signature in auth | `400` — "Invalid signature" |
 
 ---
 
@@ -209,16 +129,21 @@ Verify the backend correctly rejects invalid requests:
 |--------|----------|-------------|
 | POST | `/api/v1/registry/register` | Register a commitment |
 | GET | `/api/v1/registry/check/{commitment}` | Check if commitment exists |
-| GET | `/api/v1/verify/nonce?sp_id=...` | Get a nonce for auth (5 min TTL) |
-| POST | `/api/v1/verify/credential` | Verify credential (proof + nullifier + commitment) |
+| GET | `/api/v1/registry/group` | Get anonymity set (Semaphore commitments) |
+| POST | `/api/v1/verify/register` | ZK registration (one-time per SP) |
+| GET | `/api/v1/verify/auth/challenge` | Get challenge for Gauth |
+| POST | `/api/v1/verify/auth` | Authenticate (Ed25519 signature) |
 
 ---
 
 ## Troubleshooting
 
 - **Connection refused** — Ensure the server is running on port 8000
+- **503 IdR not configured** — Deploy the contract, add env vars, keep `npx hardhat node` running
 - **Database connection failed** — Check `DATABASE_URL` in `.env` and that PostgreSQL is running
 - **Import errors** — Run from `backend/` directory and ensure venv is activated
+- **Invalid ZK proof** — Ensure `backend/semaphore-verifier` has `npm install` run; `@semaphore-protocol/proof` must be installed
+- **Leaf at index -1** — Your identity's commitment is not in the registry; create a new identity (Home → Create new identity)
 
 
 
