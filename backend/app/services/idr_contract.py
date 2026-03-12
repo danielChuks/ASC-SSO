@@ -75,8 +75,10 @@ class IdRContract:
             raise ValueError("Deployer private key required for addCommitment")
         val = _commitment_to_uint(commitment)
         acct = self.w3.eth.account.from_key(self._deployer_key)
+        #added nonce 
+        nonce = self.w3.eth.get_transaction_count(acct.address)
         tx = self.contract.functions.addCommitment(val, is_semaphore).build_transaction(
-            {"from": acct.address, "gas": 200_000}
+            {"from": acct.address,"nonce": nonce, "gas": 200_000,"gasPrice": self.w3.eth.gas_price,}
         )
         signed = acct.sign_transaction(tx)
         tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
