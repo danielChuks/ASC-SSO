@@ -26,7 +26,7 @@ export default function LoginPage() {
         throw new Error("No identity found. Create one first.");
       }
 
-      const identity = new Identity(zkIdentity);
+      const identity = Identity.import(zkIdentity);
       const { commitments } = await getAnonymityGroup();
       if (!commitments || commitments.length < 2) {
         throw new Error("Anonymity set too small. Need at least 2 commitments. Create another identity first.");
