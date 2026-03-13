@@ -29,7 +29,7 @@ export default function Home() {
       const r = crypto.getRandomValues(new Uint8Array(32));
       const rHex = bytesToHex(r);
 
-      localStorage.setItem("shieldlogin_zk_identity", identity.toString());
+      localStorage.setItem("shieldlogin_zk_identity", identity.export());
       localStorage.setItem("shieldlogin_zk_commitment", identity.commitment.toString());
       localStorage.setItem("shieldlogin_r", rHex);
 
