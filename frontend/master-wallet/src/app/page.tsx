@@ -22,16 +22,21 @@ export default function Home() {
     setMessage("");
     try {
       const identity = new Identity();
-      const seedIdentity = new Identity("shieldlogin-bootstrap-seed-v1");
+      //const seedIdentity = new Identity("shieldlogin-bootstrap-seed-v1");
+      const seedBuffer=crypto.getRandomValues(new Uint8Array(32));
+      const seedHex = bytesToHex(seedBuffer);
+      const seedIdentity = new Identity(seedHex);
       await registerCommitment(identity.commitment.toString());
       await registerCommitment(seedIdentity.commitment.toString());
 
       const r = crypto.getRandomValues(new Uint8Array(32));
       const rHex = bytesToHex(r);
 
-      localStorage.setItem("shieldlogin_zk_identity", identity.toString());
+      
+      localStorage.setItem("shieldlogin_zk_identity", identity.export());
       localStorage.setItem("shieldlogin_zk_commitment", identity.commitment.toString());
       localStorage.setItem("shieldlogin_r", rHex);
+      localStorage.setItem("shieldlogin_seed", seedHex);
 
       setStatus("success");
       setMessage("Identity created and registered successfully!");
