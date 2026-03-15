@@ -34,6 +34,7 @@ export async function registerWithSp(data: {
   proof: string;
   merkle_tree_root: string;
 }) {
+  console.log("data is ", data);
   return apiFetch(`${API_URL}/api/v1/verify/register`, {
     method: "POST",
     body: JSON.stringify(data),
