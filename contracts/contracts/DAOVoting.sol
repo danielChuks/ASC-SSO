@@ -159,11 +159,45 @@ contract DAOVoting {
      *      signature so the frontend/backend integration can already match the
      *      long-term API shape from the docs.
      */
-    function castVote(
+    // function castVote(
+    //     uint256 proposalId,
+    //     VoteChoice voteChoice,
+    //     bytes32 nullifierHash,
+    //     bytes calldata proof
+    // ) external onlyVoteRelayer nonReentrant proposalExists(proposalId) {
+    //     Proposal storage proposal = _proposals[proposalId];
+
+    //     if (proposal.finalized) revert ProposalFinalizedAlready();
+    //     if (block.timestamp < proposal.startTime || block.timestamp > proposal.endTime) revert VotingNotOpen();
+    //     if (uint8(voteChoice) > uint8(VoteChoice.Abstain)) revert InvalidVoteChoice();
+
+    //     // Silence warnings while the PoC keeps proof/nullifier handling off-chain.
+    //     nullifierHash;
+    //     proof;
+
+    //     // Planned on-chain nullifier registry upgrade:
+    //     // require(!_usedNullifiers[proposalId][nullifierHash], "Nullifier already used");
+    //     // _usedNullifiers[proposalId][nullifierHash] = true;
+
+    //     // Planned on-chain proof verification upgrade:
+    //     // require(
+    //     //     semaphoreVerifier.verifyProof(proposal.snapshotRoot, proposalId, nullifierHash, proof),
+    //     //     "Invalid ZK proof"
+    //     // );
+
+    //     if (voteChoice == VoteChoice.Yes) {
+    //         proposal.yesVotes += 1;
+    //     } else if (voteChoice == VoteChoice.No) {
+    //         proposal.noVotes += 1;
+    //     } else {
+    //         proposal.abstainVotes += 1;
+    //     }
+
+    //     emit VoteCast(proposalId, uint8(voteChoice));
+    // }
+        function castVote(
         uint256 proposalId,
-        VoteChoice voteChoice,
-        bytes32 nullifierHash,
-        bytes calldata proof
+        VoteChoice voteChoice
     ) external onlyVoteRelayer nonReentrant proposalExists(proposalId) {
         Proposal storage proposal = _proposals[proposalId];
 
@@ -172,8 +206,8 @@ contract DAOVoting {
         if (uint8(voteChoice) > uint8(VoteChoice.Abstain)) revert InvalidVoteChoice();
 
         // Silence warnings while the PoC keeps proof/nullifier handling off-chain.
-        nullifierHash;
-        proof;
+        // nullifierHash;
+        // proof;
 
         // Planned on-chain nullifier registry upgrade:
         // require(!_usedNullifiers[proposalId][nullifierHash], "Nullifier already used");

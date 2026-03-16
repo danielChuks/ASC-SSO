@@ -46,19 +46,23 @@ describe("DAOVoting", function () {
     await time.increaseTo(startTime + 1);
 
     await expect(
-      daoVoting.connect(voter).castVote(2, 0, ethers.ZeroHash, "0x")
+      //daoVoting.connect(voter).castVote(2, 0, ethers.ZeroHash, "0x")
+      daoVoting.connect(voter).castVote(2, 0)
     ).to.be.revertedWithCustomError(daoVoting, "Unauthorized");
 
     await expect(
-      daoVoting.connect(relayer).castVote(2, 0, ethers.ZeroHash, "0x")
+      //daoVoting.connect(relayer).castVote(2, 0, ethers.ZeroHash, "0x")
+      daoVoting.connect(relayer).castVote(2, 0)
     ).to.emit(daoVoting, "VoteCast");
 
     await expect(
-      daoVoting.connect(relayer).castVote(2, 1, ethers.ZeroHash, "0x")
+      //daoVoting.connect(relayer).castVote(2, 1, ethers.ZeroHash, "0x")
+      daoVoting.connect(relayer).castVote(2, 1)
     ).to.emit(daoVoting, "VoteCast");
 
     await expect(
-      daoVoting.connect(relayer).castVote(2, 2, ethers.ZeroHash, "0x")
+      //daoVoting.connect(relayer).castVote(2, 2, ethers.ZeroHash, "0x")
+      daoVoting.connect(relayer).castVote(2, 2)
     ).to.emit(daoVoting, "VoteCast");
 
     const tally = await daoVoting.tallyVotes(2);
@@ -76,7 +80,8 @@ describe("DAOVoting", function () {
 
     await daoVoting.createProposal(3, "Finalize after voting", snapshotRoot, startTime, endTime);
     await time.increaseTo(startTime + 1);
-    await daoVoting.connect(relayer).castVote(3, 0, ethers.ZeroHash, "0x");
+    //await daoVoting.connect(relayer).castVote(3, 0, ethers.ZeroHash, "0x");
+    await daoVoting.connect(relayer).castVote(3, 0);
 
     await expect(daoVoting.finalizeProposal(3)).to.be.revertedWithCustomError(daoVoting, "VotingStillOpen");
 
@@ -90,7 +95,8 @@ describe("DAOVoting", function () {
     expect(proposal[5]).to.equal(true);
 
     await expect(
-      daoVoting.connect(relayer).castVote(3, 0, ethers.ZeroHash, "0x")
+      //daoVoting.connect(relayer).castVote(3, 0, ethers.ZeroHash, "0x")
+      daoVoting.connect(relayer).castVote(3, 0)
     ).to.be.revertedWithCustomError(daoVoting, "ProposalFinalizedAlready");
   });
 });
