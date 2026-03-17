@@ -31,8 +31,33 @@ export async function generateSemaphoreProof(
   );
 
   return {
-    proof: JSON.stringify(fullProof),
-    nullifierHash: fullProof.nullifier,
-    merkleTreeRoot: fullProof.merkleTreeRoot,
+    proof: JSON.stringify(fullProof, (_, v) => (typeof v === "bigint" ? v.toString() : v)),
+    nullifierHash: String(fullProof.nullifier),
+    merkleTreeRoot: String(fullProof.merkleTreeRoot),
+  };
+}
+
+/**
+ * Generate Semaphore ZK proof for DAO voting.
+ * scope = proposalId (external nullifier per proposal)
+ * message = voteChoice ("0"=Yes, "1"=No, "2"=Abstain)
+ */
+export async function generateSemaphoreProofForVote(
+  identity: Identity,
+  group: Group,
+  proposalId: number,
+  voteChoice: number
+): Promise<SemaphoreProofResult> {
+  const scope = String(proposalId);
+  const message = String(voteChoice);
+  const fullProof = await generateProof(identity, group, message, scope, 20);
+  // JSON.stringify fails on BigInt; use replacer for Semaphore proof
+  const proofJson = JSON.stringify(fullProof, (_, v) =>
+    typeof v === "bigint" ? v.toString() : v
+  );
+  return {
+    proof: proofJson,
+    nullifierHash: String(fullProof.nullifier),
+    merkleTreeRoot: String(fullProof.merkleTreeRoot),
   };
 }

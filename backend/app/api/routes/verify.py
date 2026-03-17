@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.core.crypto import verify_proof, generate_nonce  # verify_proof for legacy /credential
+from app.core.semaphore import verify_semaphore_proof
 from app.database import get_db
 from app.models.registry import (
     AuthChallenge,
@@ -94,38 +95,8 @@ def get_nonce(sp_id: str, db: Session = Depends(get_db)):
 
 
 def _verify_semaphore_proof(proof_json: str, nullifier_hash: str, merkle_root: str, sp_id: str) -> bool:
-    """Verify Semaphore ZK proof via Node.js subprocess."""
-    import json
-    import subprocess
-    from pathlib import Path
-
-    verifier_dir = Path(__file__).resolve().parent.parent.parent.parent / "semaphore-verifier"
-    verify_js = verifier_dir / "verify.js"
-    if not verify_js.exists():
-        raise RuntimeError("Semaphore verifier not found. Run: cd backend/semaphore-verifier && npm install")
-
-    payload = json.dumps({
-        "proof": json.loads(proof_json),
-        "nullifierHash": nullifier_hash,
-        "merkleTreeRoot": merkle_root,
-        "scope": sp_id,
-        "message": "0",
-    })
-    try:
-        result = subprocess.run(
-            ["node", str(verify_js)],
-            input=payload,
-            capture_output=True,
-            text=True,
-            cwd=str(verifier_dir),
-            timeout=30,
-        )
-        if result.returncode != 0:
-            return False
-        out = json.loads(result.stdout)
-        return out.get("verified", False)
-    except Exception:
-        return False
+    """Verify Semaphore ZK proof via Node.js subprocess (scope=sp_id, message=0)."""
+    return verify_semaphore_proof(proof_json, nullifier_hash, merkle_root, scope=sp_id, message="0")
 
 
 @router.post("/register", response_model=VerifyResponse)

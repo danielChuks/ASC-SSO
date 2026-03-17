@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     eth_rpc_url: str = "http://127.0.0.1:8545"
     idr_deployer_key: str = ""  # Private key for addCommitment (write) transactions
 
+    # DAO Voting (optional). When set, POST /api/v1/dao/vote is enabled.
+    dao_voting_contract_address: str = ""
+    dao_vote_relayer: str = ""  # Private key for castVote (vote relayer)
+
     @field_validator("database_url", mode="after")
     @classmethod
     def database_url_required(cls, v: str) -> str:

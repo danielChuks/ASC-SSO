@@ -75,3 +75,17 @@ class AuthChallenge(Base):
     expires_at = Column(DateTime, nullable=False)
     used = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class DaoVote(Base):
+    """Stores DAO votes per proposal for nullifier uniqueness (one vote per identity per proposal)."""
+
+    __tablename__ = "dao_votes"
+
+    __table_args__ = (UniqueConstraint("proposal_id", "nullifier_hash", name="uq_dao_votes_proposal_nullifier"),)
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    proposal_id = Column(Integer, nullable=False, index=True)
+    nullifier_hash = Column(String(256), nullable=False, index=True)
+    vote_choice = Column(Integer, nullable=False)  # 0=Yes, 1=No, 2=Abstain
+    created_at = Column(DateTime, default=datetime.utcnow)
