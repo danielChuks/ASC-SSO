@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { LogIn, UserPlus, Vote } from "lucide-react";
 import { Identity } from "@semaphore-protocol/identity";
@@ -13,7 +14,17 @@ import {
 import { registerWithSp, getAnonymityGroup, getAuthChallenge, authenticate } from "@/lib/api";
 
 export default function LoginPage() {
-  const [spId, setSpId] = useState("https://demo.example.com");
+  const router = useRouter();
+  const [spId, setSpId] = useState(
+    () =>
+      (typeof window !== "undefined" ? window.location.origin : null) ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      "http://localhost:3000"
+  );
+
+  useEffect(() => {
+    if (typeof window !== "undefined") setSpId(window.location.origin);
+  }, []);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
 
@@ -52,8 +63,11 @@ export default function LoginPage() {
         proof,
         merkle_tree_root: merkleTreeRoot,
       });
+      sessionStorage.setItem("lantra_authenticated", "true");
+      window.dispatchEvent(new Event("lantra:authenticated"));
       setStatus("success");
-      setMessage("Registered with SP successfully! You can now use Login for future visits.");
+      setMessage("Registered with Lantra! Redirecting to DAO...");
+      router.push("/dao");
     } catch (err) {
       setStatus("error");
       setMessage(err instanceof Error ? err.message : "Registration failed");
@@ -79,8 +93,11 @@ export default function LoginPage() {
         challenge: auth.challenge,
         signature,
       });
+      sessionStorage.setItem("lantra_authenticated", "true");
+      window.dispatchEvent(new Event("lantra:authenticated"));
       setStatus("success");
-      setMessage("Successfully authenticated!");
+      setMessage("Successfully authenticated! Redirecting to DAO...");
+      router.push("/dao");
     } catch (err) {
       setStatus("error");
       setMessage(err instanceof Error ? err.message : "Login failed");
@@ -92,21 +109,21 @@ export default function LoginPage() {
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="mb-6 flex items-center gap-3">
           <Image
-            src="/lantra-logo.png"
+            src="/lantra-logo.svg"
             alt="Lantra"
             width={48}
             height={48}
             className="rounded-xl"
           />
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Login to Site</h1>
-            <p className="text-sm text-slate-500">Anonymous authentication with Lantra</p>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Login to Lantra</h1>
+            <p className="text-sm text-slate-500">Authenticate to access DAO voting</p>
           </div>
         </div>
 
         <div className="mb-6">
           <label className="mb-2 block text-sm font-medium text-slate-700">
-            Service Provider URL
+            Lantra URL (SP)
           </label>
           <input
             type="text"
@@ -146,12 +163,12 @@ export default function LoginPage() {
         {status === "success" && (
           <div className="space-y-4">
             <div className="rounded-lg bg-green-50 p-4 text-green-800">{message}</div>
-            <button
-              onClick={() => setStatus("idle")}
-              className="w-full rounded-lg border border-slate-300 px-4 py-3 font-medium text-slate-700 hover:bg-slate-50"
+            <a
+              href="/dao"
+              className="block w-full rounded-lg bg-indigo-600 px-4 py-3 text-center font-medium text-white hover:bg-indigo-700"
             >
-              Try Again
-            </button>
+              Go to DAO →
+            </a>
           </div>
         )}
 

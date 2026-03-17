@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Vote, ThumbsUp, ThumbsDown, Minus, Loader2, RefreshCw, X } from "lucide-react";
 import { Identity } from "@semaphore-protocol/identity";
@@ -23,6 +24,7 @@ type Proposal = {
 const VOTE_LABELS = ["Yes", "No", "Abstain"] as const;
 
 export default function DaoPage() {
+  const router = useRouter();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -31,8 +33,12 @@ export default function DaoPage() {
   const [confirmVote, setConfirmVote] = useState<{ proposalId: number; choice: number } | null>(null);
 
   useEffect(() => {
+    if (typeof window !== "undefined" && !sessionStorage.getItem("lantra_authenticated")) {
+      router.replace("/login");
+      return;
+    }
     loadProposals();
-  }, []);
+  }, [router]);
 
   async function loadProposals() {
     setLoading(true);
@@ -111,7 +117,7 @@ export default function DaoPage() {
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <Image
-              src="/lantra-logo.png"
+              src="/lantra-logo.svg"
               alt="Lantra"
               width={48}
               height={48}

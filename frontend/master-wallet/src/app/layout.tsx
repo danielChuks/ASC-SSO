@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   title: "Lantra — Anonymous Identity & DAO Voting",
   description: "Lantra: Anonymous identity with zero-knowledge proofs and private DAO voting.",
   icons: {
-    icon: "/lantra-logo.png",
+    icon: "/lantra-logo.svg",
   },
 };
 

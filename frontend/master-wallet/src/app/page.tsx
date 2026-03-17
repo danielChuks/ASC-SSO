@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { Key, CheckCircle, LogIn, Vote } from "lucide-react";
+import { Key, CheckCircle, LogIn } from "lucide-react";
 import { Identity } from "@semaphore-protocol/identity";
 import { bytesToHex } from "@shieldlogin/crypto";
 import { registerCommitment } from "@/lib/api";
@@ -14,7 +14,7 @@ export default function Home() {
   useEffect(() => {
     if (localStorage.getItem("shieldlogin_zk_identity")) {
       setStatus("success");
-      setMessage("You already have an identity. Login to a site below.");
+      setMessage("You already have an identity. Login to Lantra to access DAO voting.");
     }
   }, []);
 
@@ -41,6 +41,7 @@ export default function Home() {
 
       setStatus("success");
       setMessage("Identity created and registered successfully!");
+      window.dispatchEvent(new Event("lantra:identity-changed"));
     } catch (err) {
       setStatus("error");
       setMessage(err instanceof Error ? err.message : "Failed");
@@ -52,7 +53,7 @@ export default function Home() {
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="mb-6 flex items-center gap-3">
           <Image
-            src="/lantra-logo.png"
+            src="/lantra-logo.svg"
             alt="Lantra"
             width={48}
             height={48}
@@ -95,14 +96,7 @@ export default function Home() {
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 font-medium text-white shadow-sm transition-colors hover:bg-indigo-700"
             >
               <LogIn className="h-5 w-5" />
-              Login to a Site
-            </a>
-            <a
-              href="/dao"
-              className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-indigo-600 px-4 py-3 font-medium text-indigo-600 transition-colors hover:bg-indigo-50"
-            >
-              <Vote className="h-5 w-5" />
-              DAO Voting
+              Login to Lantra
             </a>
             <button
               onClick={() => {
