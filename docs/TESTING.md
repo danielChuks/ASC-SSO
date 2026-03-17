@@ -1,12 +1,12 @@
-# How to Test ShieldLogin
+# How to Test Lantra
 
-This guide explains how to test the U2SSO flow (ZK registration + Gauth login).
+This guide explains how to test the U2SSO flow (ZK registration + Gauth login) and DAO voting.
 
 ---
 
 ## Prerequisites
 
-1. **IdR contract** — Deploy CommitmentRegistry; see [contracts/README.md](../contracts/README.md). Add `IDR_CONTRACT_ADDRESS`, `ETH_RPC_URL`, `IDR_DEPLOYER_KEY` to `backend/.env`. Keep `npx hardhat node` running.
+1. **Contracts** — Deploy CommitmentRegistry and DAOVoting; see [contracts/README.md](../contracts/README.md). Add `IDR_CONTRACT_ADDRESS`, `DAO_VOTING_CONTRACT_ADDRESS`, `DAO_VOTE_RELAYER`, `ETH_RPC_URL` to `backend/.env`. Keep `npx hardhat node` running.
 
 2. **Backend**
    ```bash
@@ -52,6 +52,7 @@ This guide explains how to test the U2SSO flow (ZK registration + Gauth login).
 1. **Create identity** — User creates Semaphore identity, registers commitments on-chain (IdR contract)
 2. **Register with SP** — User fetches group from IdR, generates ZK proof, sends to `POST /verify/register`
 3. **Login** — User gets challenge, signs with child credential, sends to `POST /verify/auth`
+4. **DAO Voting** — User fetches proposals from `GET /dao/proposals`, generates vote proof, sends to `POST /dao/vote`
 
 ---
 
@@ -63,6 +64,7 @@ This guide explains how to test the U2SSO flow (ZK registration + Gauth login).
 4. Enter SP URL (e.g. `https://demo.example.com`)
 5. Click **Register with SP (first time)** — generates ZK proof, registers
 6. Click **Login (subsequent visits)** — Gauth signature, authenticates
+7. Click **DAO Voting** (nav or Home) — view proposals, vote Yes/No/Abstain with ZK proof
 
 **Expected:** Success messages at each step.
 
@@ -109,6 +111,8 @@ Open **http://localhost:8000/docs** to explore endpoints:
 - `POST /api/v1/verify/register` — ZK registration (needs proof from frontend)
 - `GET /api/v1/verify/auth/challenge` — Get auth challenge
 - `POST /api/v1/verify/auth` — Authenticate with signature
+- `GET /api/v1/dao/proposals` — List proposals
+- `POST /api/v1/dao/vote` — Cast vote (needs proof from frontend)
 
 ---
 
@@ -133,6 +137,8 @@ Open **http://localhost:8000/docs** to explore endpoints:
 | POST | `/api/v1/verify/register` | ZK registration (one-time per SP) |
 | GET | `/api/v1/verify/auth/challenge` | Get challenge for Gauth |
 | POST | `/api/v1/verify/auth` | Authenticate (Ed25519 signature) |
+| GET | `/api/v1/dao/proposals` | List DAO proposals |
+| POST | `/api/v1/dao/vote` | Cast vote with ZK proof |
 
 ---
 

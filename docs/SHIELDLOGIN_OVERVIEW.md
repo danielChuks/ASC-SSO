@@ -1,6 +1,6 @@
-# ShieldLogin: Comprehensive Overview
+# Lantra (ShieldLogin): Comprehensive Overview
 
-A complete reference for what we have built, including all terms and abbreviations.
+A complete reference for what we have built. **Lantra** is the product name; the underlying protocol is U2SSO/ShieldLogin from the ASC paper.
 
 ---
 
@@ -46,6 +46,7 @@ A REST API that provides:
 | Semaphore Identity | Self-generated identity; commitment = Poseidon hash |
 | Semaphore Group | Anonymity set from registry commitments |
 | `generateSemaphoreProof(identity, group, sp_id)` | ZK proof of membership + nullifier |
+| `generateSemaphoreProofForVote(identity, group, proposalId, voteChoice)` | ZK proof for DAO voting |
 | `deriveChildSecret(r, sp_id)` | HKDF for child credential (Gauth) |
 | `signWithSeed(cskl, challenge)` | Ed25519 signature for authentication |
 
@@ -56,8 +57,9 @@ A REST API that provides:
 | **IdR (commitments)** | On-chain only — Solidity CommitmentRegistry; stores Semaphore commitments for anonymity set |
 | **sp_registrations** | PostgreSQL; pseudonym, nullifier per SP; Sybil resistance |
 | **auth_challenges** | PostgreSQL; one-time challenges for Gauth; 5 min expiry |
+| **dao_votes** | PostgreSQL; nullifier per (proposal_id, identity); one vote per proposal |
 
-Commitments require `IDR_CONTRACT_ADDRESS`, `ETH_RPC_URL`, and `IDR_DEPLOYER_KEY` in `.env`. See [contracts/README.md](../contracts/README.md).
+Commitments require `IDR_CONTRACT_ADDRESS`, `ETH_RPC_URL`, and `IDR_DEPLOYER_KEY` in `.env`. DAO voting requires `DAO_VOTING_CONTRACT_ADDRESS` and `DAO_VOTE_RELAYER`. See [contracts/README.md](../contracts/README.md).
 
 ---
 
@@ -95,6 +97,8 @@ Commitments require `IDR_CONTRACT_ADDRESS`, `ETH_RPC_URL`, and `IDR_DEPLOYER_KEY
 | GET | `/api/v1/verify/auth/challenge?sp_id=...&pseudonym=...` | Get challenge for auth |
 | POST | `/api/v1/verify/auth` | U2SSO authentication (Gauth) |
 | POST | `/api/v1/verify/credential` | Legacy single-flow (backward compat) |
+| GET | `/api/v1/dao/proposals` | List proposals from DAOVoting contract |
+| POST | `/api/v1/dao/vote` | Cast vote with ZK proof (scope=proposalId, message=voteChoice) |
 | GET | `/api/v1/auth/config` | OIDC config (placeholder) |
 | GET | `/api/v1/auth/authorize` | SIOP authorize (placeholder) |
 | POST | `/api/v1/auth/token` | Token endpoint (placeholder) |
@@ -138,20 +142,23 @@ rotaion-virtual-hk/
 │   │   │   ├── health.py        # Health checks
 │   │   │   ├── registry.py      # IdR — register, check, group (on-chain)
 │   │   │   ├── verify.py        # ZK registration, auth
+│   │   │   ├── dao.py           # DAO proposals, vote
 │   │   │   └── auth.py          # OIDC placeholders
 │   │   ├── services/
-│   │   │   └── idr_contract.py  # Web3 client for CommitmentRegistry
+│   │   │   ├── idr_contract.py  # Web3 client for CommitmentRegistry
+│   │   │   └── dao_contract.py  # Web3 client for DAOVoting
 │   │   ├── core/crypto/
 │   │   │   └── hash_based.py    # Legacy (hash-based PoC)
 │   │   └── models/
-│   │       └── registry.py      # SpRegistration, AuthChallenge, etc.
+│   │       └── registry.py      # SpRegistration, AuthChallenge, DaoVote, etc.
 │   ├── semaphore-verifier/      # Node.js ZK proof verification
 │   ├── requirements.txt
 │   ├── .env.example
 │   └── README.md
 ├── contracts/
 │   ├── contracts/
-│   │   └── CommitmentRegistry.sol  # On-chain IdR
+│   │   ├── CommitmentRegistry.sol  # On-chain IdR
+│   │   └── DAOVoting.sol           # On-chain proposals & tallies
 │   ├── scripts/deploy.js
 │   ├── hardhat.config.js
 │   └── README.md
@@ -173,10 +180,12 @@ rotaion-virtual-hk/
 
 | Component | Status |
 |-----------|--------|
-| Master Wallet (frontend) | ✅ Built — ZK identity, registration, login |
+| Master Wallet (frontend) | ✅ Built — ZK identity, registration, login, DAO voting |
+| DAO Voting | ✅ Built — Proposals, ZK vote, relayer |
 | Revocation/update | ❌ Not implemented |
 | OIDC/SIOP auth flow | Placeholder only |
 | Blockchain IdR | ✅ Required — Solidity CommitmentRegistry (on-chain only) |
+| DAO Contract | ✅ Required — Solidity DAOVoting (on-chain proposals & tallies) |
 
 ---
 
@@ -184,7 +193,7 @@ rotaion-virtual-hk/
 
 1. **Revocation/update** — Allow users to revoke or change pseudonyms at an SP
 2. **End-to-end verification** — Ensure Semaphore verifier path and dependencies work
-3. **Blockchain IdR** — Required; see [contracts/README.md](../contracts/README.md) for deployment
+3. **Blockchain** — Deploy CommitmentRegistry + DAOVoting; see [contracts/README.md](../contracts/README.md)
 
 ---
 

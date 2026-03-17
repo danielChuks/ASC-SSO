@@ -46,6 +46,7 @@ Implementation guide for the Master Wallet (ZK-only flow).
 | **3. Create Identity** | ✅ Done | Semaphore Identity + bootstrap seed |
 | **4. Register with SP** | ✅ Done | ZK proof via `POST /verify/register` |
 | **5. Login (Gauth)** | ✅ Done | Challenge + Ed25519 signature |
+| **6. DAO Voting** | ✅ Done | Proposals list, ZK vote (scope=proposalId, message=voteChoice) |
 
 ---
 

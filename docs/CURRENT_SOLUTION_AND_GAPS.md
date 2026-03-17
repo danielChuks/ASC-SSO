@@ -113,13 +113,15 @@ This document compares ShieldLogin's implementation against the ASC/U2SSO proble
 
 ---
 
-## API Endpoints (U2SSO Flow)
+## API Endpoints (U2SSO + DAO Flow)
 
 | Method | Path | Purpose |
 |--------|------|---------|
 | POST | `/api/v1/verify/register` | Register with SP (one-time) |
 | GET | `/api/v1/verify/auth/challenge` | Get challenge for auth |
 | POST | `/api/v1/verify/auth` | Authenticate (Gauth) |
+| GET | `/api/v1/dao/proposals` | List DAO proposals |
+| POST | `/api/v1/dao/vote` | Cast vote with ZK proof |
 | POST | `/api/v1/verify/credential` | Legacy single-flow (backward compat) |
 
 ---
