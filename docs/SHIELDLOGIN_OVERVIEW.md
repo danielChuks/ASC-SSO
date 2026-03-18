@@ -165,9 +165,7 @@ rotaion-virtual-hk/
 ├── docs/
 │   ├── SHIELDLOGIN_OVERVIEW.md  # This document
 │   ├── PROBLEM_STATEMENT.md     # ASC/U2SSO requirements
-│   ├── CURRENT_SOLUTION_AND_GAPS.md
-│   ├── FRONTEND_ROADMAP.md
-│   └── TESTING.md              # How to test
+│   └── TESTING.md               # How to test
 ├── frontend/
 │   ├── shared/crypto/           # Semaphore ZK, Gauth, HKDF
 │   └── master-wallet/           # Next.js app (create identity + login)
