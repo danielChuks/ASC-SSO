@@ -1,6 +1,6 @@
-# ShieldLogin (U2SSO)
+# Lantra
 
-User-issued Unlinkable Single Sign-On — log in to sites without revealing your identity. Based on [ePrint 2025/618](https://eprint.iacr.org/2025/618).
+Anonymous identity and DAO voting — log in to sites and vote on proposals without revealing your identity. Built on U2SSO (User-issued Unlinkable Single Sign-On) from [ePrint 2025/618](https://eprint.iacr.org/2025/618).
 
 ---
 
@@ -52,6 +52,15 @@ You (browser):  POST /verify/auth (ϕ, challenge, signature)
 Backend:        Verifies Ed25519; no ZK proof needed
 ```
 
+### Phase 4: DAO Voting
+
+```
+You (browser):  GET /dao/proposals → list proposals from DAOVoting contract
+You (browser):  Generate ZK proof (scope=proposalId, message=voteChoice)
+You (browser):  POST /dao/vote (proposal_id, vote_choice, proof, nullifier_hash, merkle_root)
+Backend:        Verifies proof, checks nullifier in dao_votes, relays to castVote()
+```
+
 ---
 
 ## Storage
@@ -61,16 +70,17 @@ Backend:        Verifies Ed25519; no ZK proof needed
 | **Commitments** | On-chain (Solidity CommitmentRegistry) |
 | **sp_registrations** | PostgreSQL |
 | **auth_challenges** | PostgreSQL |
+| **dao_votes** | PostgreSQL (nullifier per proposal) |
 | **identity, r** | Browser localStorage |
 
 ---
 
 ## Quick Start
 
-1. **Deploy IdR contract** — See [contracts/README.md](contracts/README.md)
-2. **Backend** — PostgreSQL + `.env` with `IDR_CONTRACT_ADDRESS`, `ETH_RPC_URL`, `IDR_DEPLOYER_KEY`
+1. **Deploy contracts** — See [contracts/README.md](contracts/README.md) (CommitmentRegistry + DAOVoting)
+2. **Backend** — PostgreSQL + `.env` with `IDR_CONTRACT_ADDRESS`, `DAO_VOTING_CONTRACT_ADDRESS`, `DAO_VOTE_RELAYER`, `ETH_RPC_URL`
 3. **Frontend** — `cd frontend/master-wallet && npm run dev`
-4. **Create identity** → **Register with SP** → **Login**
+4. **Create identity** → **Register with SP** → **Login** → **DAO Voting**
 
 ---
 

@@ -22,7 +22,10 @@ export async function registerCommitment(commitment: string) {
 /** Get anonymity group for ZK proof */
 export async function getAnonymityGroup() {
   const res = await fetch(`${API_URL}/api/v1/registry/group`);
-  if (!res.ok) throw new Error("Failed to get group");
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { detail?: string }).detail || "Failed to get group");
+  }
   return res.json();
 }
 
@@ -62,4 +65,38 @@ export async function authenticate(data: {
     method: "POST",
     body: JSON.stringify(data),
   });
+}
+
+/** DAO: List proposals */
+export async function getDaoProposals(): Promise<
+  Array<{
+    id: number;
+    description: string;
+    start_time: number;
+    end_time: number;
+    finalized: boolean;
+    yes_votes: number;
+    no_votes: number;
+    abstain_votes: number;
+    voting_open: boolean;
+  }>
+> {
+  return apiFetch(`${API_URL}/api/v1/dao/proposals`);
+}
+
+/** DAO: Cast vote with ZK proof */
+export async function castDaoVote(data: {
+  proposal_id: number;
+  vote_choice: number;
+  proof: string;
+  nullifier_hash: string;
+  merkle_tree_root: string;
+}) {
+  return apiFetch<{ success: boolean; message: string; tx_hash?: string }>(
+    `${API_URL}/api/v1/dao/vote`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
 }

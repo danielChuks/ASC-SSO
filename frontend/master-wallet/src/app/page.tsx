@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Shield, Key, CheckCircle, LogIn } from "lucide-react";
+import Image from "next/image";
+import { Key, CheckCircle, LogIn } from "lucide-react";
 import { Identity } from "@semaphore-protocol/identity";
 import { bytesToHex } from "@shieldlogin/crypto";
 import { registerCommitment } from "@/lib/api";
@@ -13,7 +14,7 @@ export default function Home() {
   useEffect(() => {
     if (localStorage.getItem("shieldlogin_zk_identity")) {
       setStatus("success");
-      setMessage("You already have an identity. Login to a site below.");
+      setMessage("You already have an identity. Login to Lantra to access DAO voting.");
     }
   }, []);
 
@@ -40,6 +41,7 @@ export default function Home() {
 
       setStatus("success");
       setMessage("Identity created and registered successfully!");
+      window.dispatchEvent(new Event("lantra:identity-changed"));
     } catch (err) {
       setStatus("error");
       setMessage(err instanceof Error ? err.message : "Failed");
@@ -47,11 +49,20 @@ export default function Home() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 p-8">
+    <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center bg-slate-50/50 px-4 py-12 sm:p-8">
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="mb-6 flex items-center gap-3">
-          <Shield className="h-10 w-10 text-indigo-600" />
-          <h1 className="text-2xl font-bold text-slate-900">ShieldLogin</h1>
+          <Image
+            src="/lantra-logo.svg"
+            alt="Lantra"
+            width={48}
+            height={48}
+            className="rounded-xl"
+          />
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Lantra</h1>
+            <p className="text-sm text-slate-500">Anonymous identity & DAO voting</p>
+          </div>
         </div>
         <p className="mb-6 text-slate-600">
           Create your anonymous identity with zero-knowledge proofs. Your master secret stays on your device.
@@ -60,7 +71,7 @@ export default function Home() {
         {status === "idle" && (
           <button
             onClick={handleCreate}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-3 font-medium text-white transition-colors hover:bg-indigo-700"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 font-medium text-white shadow-sm transition-colors hover:bg-indigo-700"
           >
             <Key className="h-5 w-5" />
             Create Identity
@@ -82,10 +93,10 @@ export default function Home() {
             </div>
             <a
               href="/login"
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-3 font-medium text-white hover:bg-indigo-700"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 font-medium text-white shadow-sm transition-colors hover:bg-indigo-700"
             >
               <LogIn className="h-5 w-5" />
-              Login to a Site
+              Login to Lantra
             </a>
             <button
               onClick={() => {

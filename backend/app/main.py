@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import Settings
 from app.database import lifespan
-from app.api.routes import auth, health, verify, registry
+from app.api.routes import auth, dao, health, verify, registry
 
 settings = Settings.load()
 
@@ -30,6 +30,7 @@ app.include_router(health.router, tags=["health"])
 app.include_router(auth.router, prefix=f"{settings.api_prefix}/auth", tags=["auth"])
 app.include_router(verify.router, prefix=f"{settings.api_prefix}/verify", tags=["verify"])
 app.include_router(registry.router, prefix=f"{settings.api_prefix}/registry", tags=["registry"])
+app.include_router(dao.router, prefix=f"{settings.api_prefix}/dao", tags=["dao"])
 
 
 @app.get("/")

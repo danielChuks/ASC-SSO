@@ -1,20 +1,15 @@
 #!/usr/bin/env node
-/**
- * Verifies a Semaphore ZK proof. Called by Python backend.
- * Usage: node verify.js < proof.json
- * Reads proof JSON from stdin, outputs {"verified": true|false} to stdout.
- */
 import { verifyProof } from "@semaphore-protocol/proof";
+import * as fs from "fs";
 
 async function main() {
   try {
-    let input = "";
-    for await (const chunk of process.stdin) {
-      input += chunk;
-    }
+    const filePath = process.argv[2];
+    if (!filePath) throw new Error("No file path provided");
+
+    const input = fs.readFileSync(filePath, "utf-8");
     const payload = JSON.parse(input);
 
-    // Semaphore v4: proof can be full SemaphoreProof { points, nullifier, merkleTreeRoot, ... }
     const semaphoreProof =
       payload.proof?.points != null
         ? payload.proof
@@ -28,7 +23,13 @@ async function main() {
           };
 
     const verified = await verifyProof(semaphoreProof);
+    
+    // 1. Print the result for Python to read
     console.log(JSON.stringify({ verified }));
+    
+    // 2. FORCE NODE TO KILL ALL SNARKJS THREADS AND EXIT
+    process.exit(0); 
+
   } catch (err) {
     console.error(JSON.stringify({ verified: false, error: err.message }));
     process.exit(1);
