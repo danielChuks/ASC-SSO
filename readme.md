@@ -90,7 +90,6 @@ Backend:        Verifies proof, checks nullifier in dao_votes, relays to castVot
 
 - [Problem Statement](docs/PROBLEM_STATEMENT.md) — ASC/U2SSO requirements from the paper
 - [ShieldLogin Overview](docs/SHIELDLOGIN_OVERVIEW.md) — Full system reference
-- [Current Solution & Gaps](docs/CURRENT_SOLUTION_AND_GAPS.md) — Implemented vs pending
 - [Testing](docs/TESTING.md) — How to test
 
 ---
