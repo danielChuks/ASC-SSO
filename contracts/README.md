@@ -65,3 +65,44 @@ npm run compile
 - `POST /dao/vote` — verify proof, check nullifier, relay to `castVote()`
 
 Without IdR env vars, registry endpoints return 503. DAO endpoints return 503 if not configured.
+
+## Deploy to Sepolia
+
+1. **Create `contracts/.env`** (copy from `.env.example`):
+
+   ```
+   SEPOLIA_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
+   SEPOLIA_DEPLOYER_PRIVATE_KEY=0x...   # 0x + 64 hex chars (private key, NOT address)
+   DAO_VOTE_RELAYER_ADDRESS=0x...       # Address that will relay votes (e.g. deployer or backend relayer)
+   ```
+
+   **Getting the values:**
+   - `SEPOLIA_RPC_URL` — Use public node above, or Infura/Alchemy with your key
+   - `SEPOLIA_DEPLOYER_PRIVATE_KEY` — Export from MetaMask (Account details → Show private key). Must be 64 hex chars after `0x`. An address (40 chars) will not work.
+   - `DAO_VOTE_RELAYER_ADDRESS` — The address that will call `castVote`. Can be the deployer's address, or the address of the backend relayer (derived from `DAO_VOTE_RELAYER` private key)
+
+2. **Fund the deployer** — Get Sepolia ETH from a faucet (e.g. [sepoliafaucet.com](https://sepoliafaucet.com))
+
+3. **Deploy**:
+
+   ```bash
+   npm run deploy:dao:sepolia
+   ```
+
+4. **Update `backend/.env`** with the printed values:
+
+   ```
+   ETH_RPC_URL=<SEPOLIA_RPC_URL from step 1>
+   IDR_CONTRACT_ADDRESS=<from deploy output>
+   DAO_VOTING_CONTRACT_ADDRESS=<from deploy output>
+   DAO_VOTE_RELAYER_ADDRESS=<from deploy output>
+   IDR_DEPLOYER_KEY=0x...   # Same private key as SEPOLIA_DEPLOYER_PRIVATE_KEY (or separate commitment writer)
+   DAO_VOTE_RELAYER=0x...   # Private key for the relayer address (castVote)
+   ```
+
+5. **Update `frontend/master-wallet/.env.local`**:
+
+   ```
+   NEXT_PUBLIC_DAO_VOTING_CONTRACT_ADDRESS=<DAO_VOTING_CONTRACT_ADDRESS from deploy output>
+   NEXT_PUBLIC_DAO_CHAIN_ID=11155111
+   ```

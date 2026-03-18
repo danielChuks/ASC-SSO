@@ -176,7 +176,7 @@ export default function DaoPage() {
           await hydrateOwnerStatus(accounts[0]);
         }
       } catch {
-        // no-op for initial wallet probing
+        /* no-op */
       }
     })();
   }, [router, getInjectedProvider, hydrateOwnerStatus, loadProposals]);
@@ -312,7 +312,6 @@ export default function DaoPage() {
       const signer = await browserProvider.getSigner();
       const contract = new ethers.Contract(DAO_CONTRACT_ADDRESS, DAO_CONTRACT_ABI, signer);
 
-      // Temporary placeholder root until proper snapshot construction is wired.
       const snapshotRoot = ethers.keccak256(ethers.toUtf8Bytes("proposal-1-snapshot"));
       const tx = await contract.createProposal(
         BigInt(proposalId),
@@ -328,7 +327,38 @@ export default function DaoPage() {
       setNewProposalDescription("");
       setNewProposalStart("");
       setNewProposalEnd("");
-      await loadProposals();
+
+      const now = Math.floor(Date.now() / 1000);
+      const votingOpen = now >= startUnix && now <= endUnix;
+      setProposals((prev) => {
+        if (prev.some((p) => p.id === proposalId)) return prev;
+        return [
+          ...prev,
+          {
+            id: proposalId,
+            description: newProposalDescription.trim(),
+            start_time: startUnix,
+            end_time: endUnix,
+            finalized: false,
+            yes_votes: 0,
+            no_votes: 0,
+            abstain_votes: 0,
+            voting_open: votingOpen,
+          },
+        ].sort((a, b) => a.id - b.id);
+      });
+
+      await new Promise((r) => setTimeout(r, 1500));
+      try {
+        const data = await getDaoProposals();
+        setProposals((prev) => {
+          const fromBackend = new Set(data.map((p) => p.id));
+          const pending = prev.filter((p) => !fromBackend.has(p.id));
+          return [...data, ...pending].sort((a, b) => a.id - b.id);
+        });
+      } catch {
+        /* keep optimistic data */
+      }
     } catch (err) {
       addToast("error", "Create proposal failed", err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -428,7 +458,18 @@ export default function DaoPage() {
       await tx.wait();
 
       addToast("success", "Proposal finalized", `Proposal #${proposalId} was finalized successfully.`);
-      await loadProposals();
+
+      setProposals((prev) =>
+        prev.map((p) => (p.id === proposalId ? { ...p, finalized: true, voting_open: false } : p))
+      );
+
+      await new Promise((r) => setTimeout(r, 1500));
+      try {
+        const data = await getDaoProposals();
+        setProposals(data);
+      } catch {
+        /* keep optimistic data */
+      }
     } catch (err) {
       addToast("error", "Finalize failed", err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -455,54 +496,54 @@ export default function DaoPage() {
   function getToastStyle(tone: ToastTone) {
     if (tone === "success") {
       return {
-        icon: <CheckCircle2 className="h-4 w-4 text-emerald-700" />,
-        box: "border-emerald-200 bg-emerald-50 text-emerald-900",
+        icon: <CheckCircle2 className="h-4 w-4 text-emerald-400" />,
+        box: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
       };
     }
     if (tone === "error") {
       return {
-        icon: <AlertCircle className="h-4 w-4 text-red-700" />,
-        box: "border-red-200 bg-red-50 text-red-900",
+        icon: <AlertCircle className="h-4 w-4 text-red-400" />,
+        box: "border-red-500/30 bg-red-500/10 text-red-400",
       };
     }
     return {
-      icon: <Info className="h-4 w-4 text-sky-700" />,
-      box: "border-sky-200 bg-sky-50 text-sky-900",
+      icon: <Info className="h-4 w-4 text-cyan-400" />,
+      box: "border-cyan-500/30 bg-cyan-500/10 text-cyan-400",
     };
   }
 
   return (
-    <div className="relative min-h-[calc(100vh-4rem)] bg-gradient-to-b from-white via-slate-50 to-slate-100 px-4 py-8 sm:px-6">
-      <div className="mx-auto grid w-full max-w-6xl gap-8 lg:grid-cols-[320px,1fr]">
-        <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="relative min-h-[calc(100vh-4rem)] px-4 py-8 sm:px-6">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 lg:flex-row">
+        <aside className="order-1 glass-card w-full shrink-0 rounded-2xl p-5 lg:order-2 lg:w-[320px]">
           <div className="mb-4 flex items-center gap-2">
-            <UserRoundCog className="h-5 w-5 text-indigo-600" />
-            <h2 className="text-lg font-semibold text-slate-900">Admin Panel</h2>
+            <UserRoundCog className="h-5 w-5 text-cyan-400" />
+            <h2 className="text-lg font-semibold text-slate-100">Admin Panel</h2>
           </div>
 
-          <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs">
+          <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-3 text-xs">
             <div className="flex items-center justify-between gap-2">
               <span className="text-slate-500">Connected</span>
-              <span className="font-mono text-slate-800">{shortAddress(connectedAccount)}</span>
+              <span className="font-mono text-slate-300">{shortAddress(connectedAccount)}</span>
             </div>
             <div className="flex items-center justify-between gap-2">
               <span className="text-slate-500">Owner</span>
-              <span className="font-mono text-slate-800">{ownerAddress ? shortAddress(ownerAddress) : "Unknown"}</span>
+              <span className="font-mono text-slate-300">{ownerAddress ? shortAddress(ownerAddress) : "Unknown"}</span>
             </div>
             <div className="flex items-center justify-between gap-2">
               <span className="text-slate-500">Chain ID</span>
-              <span className="font-mono text-slate-800">{walletChainId || "Unknown"}</span>
+              <span className="font-mono text-slate-300">{walletChainId || "Unknown"}</span>
             </div>
           </div>
 
           {connectedAccount && walletChainId && !isOnExpectedNetwork && (
-            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+            <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-400">
               <p className="mb-2">
                 Connected to chain {walletChainId}. This app requires chain {EXPECTED_CHAIN_ID}.
               </p>
               <button
                 onClick={switchToExpectedNetwork}
-                className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
+                className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-slate-900 hover:bg-amber-400"
               >
                 Switch to Sepolia
               </button>
@@ -510,7 +551,7 @@ export default function DaoPage() {
           )}
 
           {ownerLookupError && (
-            <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
+            <p className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-400">
               {ownerLookupError}
             </p>
           )}
@@ -519,7 +560,7 @@ export default function DaoPage() {
             <button
               onClick={connectWallet}
               disabled={walletLoading}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-medium text-slate-900 shadow-lg shadow-cyan-500/25 transition-all hover:bg-cyan-400 disabled:opacity-60"
             >
               {walletLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
               {walletLoading ? "Connecting..." : "Connect Wallet"}
@@ -527,7 +568,7 @@ export default function DaoPage() {
           )}
 
           {connectedAccount && !isOwner && (
-            <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            <p className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-400">
               You are connected as a voter. Only owner can create proposals.
             </p>
           )}
@@ -541,37 +582,39 @@ export default function DaoPage() {
                 value={newProposalId}
                 onChange={(e) => setNewProposalId(e.target.value)}
                 placeholder="Proposal ID"
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-black focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-xl border border-white/20 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
               />
               <textarea
                 value={newProposalDescription}
                 onChange={(e) => setNewProposalDescription(e.target.value)}
                 placeholder="Proposal description"
                 rows={3}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-black focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-xl border border-white/20 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
               />
               <div>
-                <label className="mb-1 block text-xs text-slate-500">Start Time</label>
+                <label htmlFor="proposal-start" className="mb-1 block text-xs text-slate-500">Start Time</label>
                 <input
+                  id="proposal-start"
                   type="datetime-local"
                   value={newProposalStart}
                   onChange={(e) => setNewProposalStart(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-black focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full rounded-xl border border-white/20 bg-white/5 px-3 py-2 text-sm text-slate-100 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-slate-500">End Time</label>
+                <label htmlFor="proposal-end" className="mb-1 block text-xs text-slate-500">End Time</label>
                 <input
+                  id="proposal-end"
                   type="datetime-local"
                   value={newProposalEnd}
                   onChange={(e) => setNewProposalEnd(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-black focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full rounded-xl border border-white/20 bg-white/5 px-3 py-2 text-sm text-slate-100 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                 />
               </div>
               <button
                 onClick={handleCreateProposal}
                 disabled={creatingProposal}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-medium text-slate-900 shadow-lg shadow-emerald-500/25 transition-all hover:bg-emerald-400 disabled:opacity-60"
               >
                 {creatingProposal ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlusCircle className="h-4 w-4" />}
                 {creatingProposal ? "Creating..." : "Create Proposal"}
@@ -580,19 +623,19 @@ export default function DaoPage() {
           )}
         </aside>
 
-        <section>
-          <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <section className="order-2 min-w-0 flex-1 lg:order-1">
+          <div className="glass-card mb-6 flex flex-col gap-4 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <Image src="/lantra-logo.svg" alt="Lantra" width={44} height={44} className="rounded-xl" />
               <div>
-                <h1 className="text-2xl font-bold tracking-tight text-slate-900">DAO Voting</h1>
-                <p className="text-sm text-slate-500">Private voting with zero-knowledge membership proofs</p>
+                <h1 className="text-2xl font-bold tracking-tight text-slate-100">DAO Voting</h1>
+                <p className="text-sm text-slate-400">Private voting with zero-knowledge membership proofs</p>
               </div>
             </div>
             <button
               onClick={() => loadProposals()}
               disabled={loading}
-              className="flex items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60 sm:self-auto"
+              className="flex items-center gap-2 self-start rounded-xl border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-slate-400 transition-colors hover:bg-white/10 hover:text-slate-100 disabled:opacity-60 sm:self-auto"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               Refresh
@@ -602,20 +645,20 @@ export default function DaoPage() {
           {loading && (
             <div className="space-y-5">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="animate-pulse rounded-2xl border border-slate-200 bg-white p-6">
-                  <div className="mb-3 h-5 w-40 rounded bg-slate-200" />
-                  <div className="mb-3 h-4 w-full rounded bg-slate-100" />
-                  <div className="mb-4 h-4 w-3/4 rounded bg-slate-100" />
-                  <div className="h-2 w-full rounded bg-slate-100" />
+                <div key={i} className="glass-card animate-pulse rounded-2xl p-6">
+                  <div className="mb-3 h-5 w-40 rounded bg-white/10" />
+                  <div className="mb-3 h-4 w-full rounded bg-white/5" />
+                  <div className="mb-4 h-4 w-3/4 rounded bg-white/5" />
+                  <div className="h-2 w-full rounded bg-white/5" />
                 </div>
               ))}
             </div>
           )}
 
           {!loading && proposals.length === 0 && (
-            <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-white p-12 text-center">
-              <Vote className="mx-auto mb-4 h-12 w-12 text-slate-300" />
-              <h3 className="mb-2 text-lg font-semibold text-slate-800">No proposals yet</h3>
+            <div className="glass-card rounded-2xl border-2 border-dashed border-white/10 p-12 text-center">
+              <Vote className="mx-auto mb-4 h-12 w-12 text-slate-500" />
+              <h3 className="mb-2 text-lg font-semibold text-slate-300">No proposals yet</h3>
               <p className="text-sm text-slate-500">Create one from the admin panel to start DAO voting.</p>
             </div>
           )}
@@ -630,7 +673,7 @@ export default function DaoPage() {
               return (
                 <article
                   key={proposal.id}
-                  className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md"
+                  className="glass-card mb-6 overflow-hidden rounded-2xl transition-all hover:border-cyan-500/20"
                 >
                   <div className="p-6">
                     <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -638,15 +681,15 @@ export default function DaoPage() {
                         <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
                           Proposal #{proposal.id}
                         </p>
-                        <h2 className="text-lg font-semibold text-slate-900">{proposal.description}</h2>
+                        <h2 className="text-lg font-semibold text-slate-100">{proposal.description}</h2>
                       </div>
                       <span
                         className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${
                           proposal.finalized
-                            ? "bg-slate-200 text-slate-700"
+                            ? "bg-slate-500/30 text-slate-400"
                             : proposal.voting_open
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-amber-100 text-amber-700"
+                              ? "bg-emerald-500/20 text-emerald-400"
+                              : "bg-amber-500/20 text-amber-400"
                         }`}
                       >
                         <Clock3 className="h-3.5 w-3.5" />
@@ -659,15 +702,15 @@ export default function DaoPage() {
                     </p>
 
                     <div className="mb-4">
-                      <div className="mb-2 flex h-2 overflow-hidden rounded-full bg-slate-100">
+                      <div className="mb-2 flex h-2 overflow-hidden rounded-full bg-white/10">
                         <div className="bg-emerald-500 transition-all" style={{ width: `${yesPct}%` }} />
                         <div className="bg-rose-500 transition-all" style={{ width: `${noPct}%` }} />
                         <div className="bg-slate-400 transition-all" style={{ width: `${abstainPct}%` }} />
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-sm">
-                        <div className="rounded-lg bg-emerald-50 px-3 py-2 text-emerald-700">Yes: {proposal.yes_votes}</div>
-                        <div className="rounded-lg bg-rose-50 px-3 py-2 text-rose-700">No: {proposal.no_votes}</div>
-                        <div className="rounded-lg bg-slate-100 px-3 py-2 text-slate-700">Abstain: {proposal.abstain_votes}</div>
+                        <div className="rounded-lg bg-emerald-500/20 px-3 py-2 text-emerald-400">Yes: {proposal.yes_votes}</div>
+                        <div className="rounded-lg bg-rose-500/20 px-3 py-2 text-rose-400">No: {proposal.no_votes}</div>
+                        <div className="rounded-lg bg-white/10 px-3 py-2 text-slate-400">Abstain: {proposal.abstain_votes}</div>
                       </div>
                     </div>
 
@@ -680,10 +723,10 @@ export default function DaoPage() {
                             disabled={!!votingFor}
                             className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition disabled:opacity-50 ${
                               choice === 0
-                                ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                                ? "bg-emerald-500/80 text-slate-900 hover:bg-emerald-500"
                                 : choice === 1
-                                  ? "bg-rose-600 text-white hover:bg-rose-700"
-                                  : "border border-slate-300 text-slate-700 hover:bg-slate-50"
+                                  ? "bg-rose-500/80 text-white hover:bg-rose-500"
+                                  : "border border-white/20 text-slate-400 hover:bg-white/5 hover:text-slate-200"
                             }`}
                           >
                             {votingFor?.proposalId === proposal.id && votingFor?.choice === choice ? (
@@ -702,7 +745,7 @@ export default function DaoPage() {
                     )}
 
                     {isOwner && (
-                      <div className="mt-4 border-t border-slate-100 pt-4">
+                      <div className="mt-4 border-t border-white/10 pt-4">
                         <button
                           onClick={() => handleFinalizeProposal(proposal.id)}
                           disabled={
@@ -710,7 +753,7 @@ export default function DaoPage() {
                             proposal.voting_open ||
                             proposal.finalized
                           }
-                          className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-medium text-slate-900 shadow-lg shadow-cyan-500/25 transition-all hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {finalizingProposalId === proposal.id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -741,7 +784,7 @@ export default function DaoPage() {
           {toasts.map((toast) => {
             const style = getToastStyle(toast.tone);
             return (
-              <div key={toast.id} className={`rounded-xl border p-3 shadow-md ${style.box}`}>
+              <div key={toast.id} className={`rounded-xl border p-3 shadow-xl backdrop-blur-md ${style.box}`}>
                 <div className="flex items-start gap-2">
                   <span className="mt-0.5">{style.icon}</span>
                   <div className="min-w-0 flex-1">
@@ -750,7 +793,7 @@ export default function DaoPage() {
                   </div>
                   <button
                     onClick={() => removeToast(toast.id)}
-                    className="rounded p-1 text-current/70 hover:bg-white/50"
+                    className="rounded p-1 text-current/70 hover:bg-white/10"
                     aria-label="Dismiss toast"
                   >
                     <X className="h-4 w-4" />
@@ -764,27 +807,27 @@ export default function DaoPage() {
 
       {confirmVote && (
         <div
-          className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-[2px]"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
           onClick={() => setConfirmVote(null)}
         >
           <div
-            className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"
+            className="glass-card w-full max-w-sm rounded-2xl p-6 shadow-2xl shadow-cyan-500/5"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="mb-2 text-lg font-semibold text-slate-900">Confirm Vote</h3>
-            <p className="mb-5 text-sm text-slate-600">
-              Vote <strong>{VOTE_LABELS[confirmVote.choice]}</strong> on proposal #{confirmVote.proposalId}. This action cannot be undone.
+            <h3 className="mb-2 text-lg font-semibold text-slate-100">Confirm Vote</h3>
+            <p className="mb-5 text-sm text-slate-400">
+              Vote <strong className="text-cyan-400">{VOTE_LABELS[confirmVote.choice]}</strong> on proposal #{confirmVote.proposalId}. This action cannot be undone.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmVote(null)}
-                className="flex-1 rounded-xl border border-slate-300 py-2.5 font-medium text-slate-700 hover:bg-slate-50"
+                className="flex-1 rounded-xl border border-white/20 py-2.5 font-medium text-slate-300 transition-colors hover:bg-white/5"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleVote(confirmVote.proposalId, confirmVote.choice)}
-                className="flex-1 rounded-xl bg-indigo-600 py-2.5 font-medium text-white hover:bg-indigo-700"
+                className="flex-1 rounded-xl bg-cyan-500 py-2.5 font-medium text-slate-900 shadow-lg shadow-cyan-500/25 transition-all hover:bg-cyan-400"
               >
                 Confirm
               </button>

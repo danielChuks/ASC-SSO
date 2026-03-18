@@ -27,10 +27,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col font-sans antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} relative flex min-h-screen flex-col font-sans antialiased`}
       >
+        <div className="blockchain-bg" aria-hidden />
         <Nav />
         <main className="flex-1">{children}</main>
       </body>

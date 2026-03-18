@@ -59,7 +59,7 @@ A REST API that provides:
 | **auth_challenges** | PostgreSQL; one-time challenges for Gauth; 5 min expiry |
 | **dao_votes** | PostgreSQL; nullifier per (proposal_id, identity); one vote per proposal |
 
-Commitments require `IDR_CONTRACT_ADDRESS`, `ETH_RPC_URL`, and `IDR_DEPLOYER_KEY` in `.env`. DAO voting requires `DAO_VOTING_CONTRACT_ADDRESS` and `DAO_VOTE_RELAYER`. See [contracts/README.md](../contracts/README.md).
+Commitments require `IDR_CONTRACT_ADDRESS`, `ETH_RPC_URL`, and `IDR_DEPLOYER_KEY` in `.env`. DAO voting requires `DAO_VOTING_CONTRACT_ADDRESS`, `DAO_VOTE_RELAYER_ADDRESS`, and `DAO_VOTE_RELAYER`. See [contracts/README.md](../contracts/README.md).
 
 ---
 

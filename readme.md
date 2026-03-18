@@ -77,10 +77,12 @@ Backend:        Verifies proof, checks nullifier in dao_votes, relays to castVot
 
 ## Quick Start
 
-1. **Deploy contracts** — See [contracts/README.md](contracts/README.md) (CommitmentRegistry + DAOVoting)
-2. **Backend** — PostgreSQL + `.env` with `IDR_CONTRACT_ADDRESS`, `DAO_VOTING_CONTRACT_ADDRESS`, `DAO_VOTE_RELAYER`, `ETH_RPC_URL`
-3. **Frontend** — `cd frontend/master-wallet && npm run dev`
-4. **Create identity** → **Register with SP** → **Login** → **DAO Voting**
+1. **Deploy contracts** — See [contracts/README.md](contracts/README.md)
+   - Local: `npm run deploy:local` (requires Hardhat node)
+   - Sepolia: `npm run deploy:dao:sepolia` (requires `contracts/.env` and Sepolia ETH)
+2. **Backend** — PostgreSQL + `.env` with contract addresses, RPC URL, and keys
+3. **Frontend** — `cd frontend/master-wallet && npm run dev` + `.env.local` with `NEXT_PUBLIC_DAO_VOTING_CONTRACT_ADDRESS`, `NEXT_PUBLIC_DAO_CHAIN_ID`
+4. **Create identity** → **Login to Lantra** → **DAO Voting**
 
 ---
 
