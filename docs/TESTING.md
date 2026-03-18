@@ -6,7 +6,9 @@ This guide explains how to test the U2SSO flow (ZK registration + Gauth login) a
 
 ## Prerequisites
 
-1. **Contracts** — Deploy CommitmentRegistry and DAOVoting; see [contracts/README.md](../contracts/README.md). Add `IDR_CONTRACT_ADDRESS`, `DAO_VOTING_CONTRACT_ADDRESS`, `DAO_VOTE_RELAYER` (private key), `ETH_RPC_URL`, `IDR_DEPLOYER_KEY` to `backend/.env`. Keep `npx hardhat node` running for local testing.
+1. **Contracts** — Deploy CommitmentRegistry and DAOVoting; see [contracts/README.md](../contracts/README.md).
+   - **Local:** `npm run deploy:local` (requires `npx hardhat node`). Add addresses to `backend/.env`.
+   - **Sepolia:** `npm run deploy:dao:sepolia` (requires `contracts/.env` with `SEPOLIA_DEPLOYER_PRIVATE_KEY` = 0x + 64 hex chars, `DAO_VOTE_RELAYER_ADDRESS`, `SEPOLIA_RPC_URL`). See [contracts/README.md](../contracts/README.md#deploy-to-sepolia).
 
 2. **Backend**
    ```bash
@@ -39,14 +41,28 @@ This guide explains how to test the U2SSO flow (ZK registration + Gauth login) a
 
 ## Quick Checklist
 
+### Local
+
 | # | Service | Command | Port |
 |---|---------|---------|------|
-| 1 | Hardhat node (local) | `cd contracts && npx hardhat node` | 8545 |
+| 1 | Hardhat node | `cd contracts && npx hardhat node` | 8545 |
 | 2 | Deploy contracts | `cd contracts && npm run deploy:local` | — |
 | 3 | Backend | `cd backend && uvicorn app.main:app --reload --port 8000` | 8000 |
 | 4 | Frontend | `cd frontend/master-wallet && npm run dev` | 3000 |
 
-PostgreSQL must be running. Set `NEXT_PUBLIC_DAO_CHAIN_ID=31337` for local Hardhat or `11155111` for Sepolia.
+Set `NEXT_PUBLIC_DAO_CHAIN_ID=31337` for local.
+
+### Sepolia
+
+| # | Step | Command / Action |
+|---|------|------------------|
+| 1 | contracts/.env | `SEPOLIA_RPC_URL`, `SEPOLIA_DEPLOYER_PRIVATE_KEY` (0x+64 hex), `DAO_VOTE_RELAYER_ADDRESS` |
+| 2 | Fund deployer | Get Sepolia ETH from faucet |
+| 3 | Deploy | `cd contracts && npm run deploy:dao:sepolia` |
+| 4 | backend/.env | Update with deploy output (addresses, RPC, keys) |
+| 5 | frontend/.env.local | `NEXT_PUBLIC_DAO_VOTING_CONTRACT_ADDRESS`, `NEXT_PUBLIC_DAO_CHAIN_ID=11155111` |
+
+PostgreSQL must be running for both.
 
 ---
 
@@ -224,6 +240,7 @@ Open **http://localhost:8000/docs** to explore endpoints:
 | **Wrong network** | Connect wallet and switch to chain 31337 (local) or 11155111 (Sepolia) |
 | **Owner required** | Only the contract owner can create/finalize; connect the deployer wallet |
 | **No contract at address** | Ensure `NEXT_PUBLIC_DAO_VOTING_CONTRACT_ADDRESS` matches the deployed contract and chain |
+| **Private key too short** | `SEPOLIA_DEPLOYER_PRIVATE_KEY` must be 0x + 64 hex chars (private key). An address (40 chars) will not work. Export from MetaMask: Account details → Show private key |
 
 
 

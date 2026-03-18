@@ -84,7 +84,8 @@ When configured, DAO voting endpoints are enabled. Add to `.env`:
 
 ```
 DAO_VOTING_CONTRACT_ADDRESS=0x...
-DAO_VOTE_RELAYER=0x...   # Private key for vote relayer (castVote)
+DAO_VOTE_RELAYER_ADDRESS=0x...   # Address configured as voteRelayer in contract
+DAO_VOTE_RELAYER=0x...           # Private key for vote relayer (castVote)
 ```
 
-Requires `ETH_RPC_URL`. The `dao_votes` table stores nullifiers for one-vote-per-identity-per-proposal.
+Requires `ETH_RPC_URL`. For Sepolia, use a Sepolia RPC URL. The `dao_votes` table stores nullifiers for one-vote-per-identity-per-proposal.

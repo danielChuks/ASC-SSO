@@ -328,7 +328,40 @@ export default function DaoPage() {
       setNewProposalDescription("");
       setNewProposalStart("");
       setNewProposalEnd("");
-      await loadProposals();
+
+      // Optimistic update: show new proposal immediately (RPC can lag behind)
+      const now = Math.floor(Date.now() / 1000);
+      const votingOpen = now >= startUnix && now <= endUnix;
+      setProposals((prev) => {
+        if (prev.some((p) => p.id === proposalId)) return prev;
+        return [
+          ...prev,
+          {
+            id: proposalId,
+            description: newProposalDescription.trim(),
+            start_time: startUnix,
+            end_time: endUnix,
+            finalized: false,
+            yes_votes: 0,
+            no_votes: 0,
+            abstain_votes: 0,
+            voting_open: votingOpen,
+          },
+        ].sort((a, b) => a.id - b.id);
+      });
+
+      // Refresh from backend after short delay (RPC propagation)
+      await new Promise((r) => setTimeout(r, 1500));
+      try {
+        const data = await getDaoProposals();
+        setProposals((prev) => {
+          const fromBackend = new Set(data.map((p) => p.id));
+          const pending = prev.filter((p) => !fromBackend.has(p.id));
+          return [...data, ...pending].sort((a, b) => a.id - b.id);
+        });
+      } catch {
+        // Keep optimistic data on refresh failure
+      }
     } catch (err) {
       addToast("error", "Create proposal failed", err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -428,7 +461,20 @@ export default function DaoPage() {
       await tx.wait();
 
       addToast("success", "Proposal finalized", `Proposal #${proposalId} was finalized successfully.`);
-      await loadProposals();
+
+      // Optimistic update: mark proposal finalized immediately
+      setProposals((prev) =>
+        prev.map((p) => (p.id === proposalId ? { ...p, finalized: true, voting_open: false } : p))
+      );
+
+      // Refresh from backend after short delay (RPC propagation)
+      await new Promise((r) => setTimeout(r, 1500));
+      try {
+        const data = await getDaoProposals();
+        setProposals(data);
+      } catch {
+        // Keep optimistic data on refresh failure
+      }
     } catch (err) {
       addToast("error", "Finalize failed", err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -473,8 +519,8 @@ export default function DaoPage() {
 
   return (
     <div className="relative min-h-[calc(100vh-4rem)] px-4 py-8 sm:px-6">
-      <div className="mx-auto grid w-full max-w-6xl gap-8 lg:grid-cols-[320px,1fr]">
-        <aside className="glass-card h-fit rounded-2xl p-5">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 lg:flex-row">
+        <aside className="order-1 glass-card w-full shrink-0 rounded-2xl p-5 lg:order-2 lg:w-[320px]">
           <div className="mb-4 flex items-center gap-2">
             <UserRoundCog className="h-5 w-5 text-cyan-400" />
             <h2 className="text-lg font-semibold text-slate-100">Admin Panel</h2>
@@ -582,7 +628,7 @@ export default function DaoPage() {
           )}
         </aside>
 
-        <section>
+        <section className="order-2 min-w-0 flex-1 lg:order-1">
           <div className="glass-card mb-6 flex flex-col gap-4 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <Image src="/lantra-logo.svg" alt="Lantra" width={44} height={44} className="rounded-xl" />
