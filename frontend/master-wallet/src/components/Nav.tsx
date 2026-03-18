@@ -48,7 +48,7 @@ export default function Nav() {
             <Home className="h-4 w-4" />
             <span className="hidden sm:inline">Home</span>
           </Link>
-          {hasIdentity && (
+          {hasIdentity && !isAuthenticated && (
             <Link
               href="/login"
               className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
