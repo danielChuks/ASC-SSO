@@ -210,9 +210,10 @@ Open **http://localhost:8000/docs** to explore endpoints:
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
 | `IDR_CONTRACT_ADDRESS` | Yes | CommitmentRegistry contract |
-| `ETH_RPC_URL` | Yes | RPC URL (e.g. `http://127.0.0.1:8545` for local) |
+| `ETH_RPC_URL` | Yes | RPC URL (local or Sepolia) |
 | `IDR_DEPLOYER_KEY` | Yes | Private key for addCommitment |
 | `DAO_VOTING_CONTRACT_ADDRESS` | For DAO | DAOVoting contract |
+| `DAO_VOTE_RELAYER_ADDRESS` | For DAO | Address configured as voteRelayer in contract |
 | `DAO_VOTE_RELAYER` | For DAO | Private key for vote relayer (castVote) |
 
 ### Frontend (`.env.local`)

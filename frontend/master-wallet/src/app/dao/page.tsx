@@ -176,7 +176,7 @@ export default function DaoPage() {
           await hydrateOwnerStatus(accounts[0]);
         }
       } catch {
-        // no-op for initial wallet probing
+        /* no-op */
       }
     })();
   }, [router, getInjectedProvider, hydrateOwnerStatus, loadProposals]);
@@ -312,7 +312,6 @@ export default function DaoPage() {
       const signer = await browserProvider.getSigner();
       const contract = new ethers.Contract(DAO_CONTRACT_ADDRESS, DAO_CONTRACT_ABI, signer);
 
-      // Temporary placeholder root until proper snapshot construction is wired.
       const snapshotRoot = ethers.keccak256(ethers.toUtf8Bytes("proposal-1-snapshot"));
       const tx = await contract.createProposal(
         BigInt(proposalId),
@@ -329,7 +328,6 @@ export default function DaoPage() {
       setNewProposalStart("");
       setNewProposalEnd("");
 
-      // Optimistic update: show new proposal immediately (RPC can lag behind)
       const now = Math.floor(Date.now() / 1000);
       const votingOpen = now >= startUnix && now <= endUnix;
       setProposals((prev) => {
@@ -350,7 +348,6 @@ export default function DaoPage() {
         ].sort((a, b) => a.id - b.id);
       });
 
-      // Refresh from backend after short delay (RPC propagation)
       await new Promise((r) => setTimeout(r, 1500));
       try {
         const data = await getDaoProposals();
@@ -360,7 +357,7 @@ export default function DaoPage() {
           return [...data, ...pending].sort((a, b) => a.id - b.id);
         });
       } catch {
-        // Keep optimistic data on refresh failure
+        /* keep optimistic data */
       }
     } catch (err) {
       addToast("error", "Create proposal failed", err instanceof Error ? err.message : "Unknown error");
@@ -462,18 +459,16 @@ export default function DaoPage() {
 
       addToast("success", "Proposal finalized", `Proposal #${proposalId} was finalized successfully.`);
 
-      // Optimistic update: mark proposal finalized immediately
       setProposals((prev) =>
         prev.map((p) => (p.id === proposalId ? { ...p, finalized: true, voting_open: false } : p))
       );
 
-      // Refresh from backend after short delay (RPC propagation)
       await new Promise((r) => setTimeout(r, 1500));
       try {
         const data = await getDaoProposals();
         setProposals(data);
       } catch {
-        // Keep optimistic data on refresh failure
+        /* keep optimistic data */
       }
     } catch (err) {
       addToast("error", "Finalize failed", err instanceof Error ? err.message : "Unknown error");

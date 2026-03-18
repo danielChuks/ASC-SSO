@@ -32,7 +32,7 @@ class Settings(BaseSettings):
 
     # DAO Voting (optional). When set, POST /api/v1/dao/vote is enabled.
     dao_voting_contract_address: str = ""
-    dao_vote_relayer_address: str = ""  #  relayer address 
+    dao_vote_relayer_address: str = ""  # Address configured as voteRelayer in contract
     dao_vote_relayer: str = ""  # Private key for castVote (vote relayer)
 
     @field_validator("database_url", mode="after")
