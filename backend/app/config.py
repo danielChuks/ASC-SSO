@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     api_prefix: str = "/api/v1"
 
     # CORS
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
     # Database - from DATABASE_URL env var (set in .env)
     database_url: str = ""
@@ -32,6 +32,7 @@ class Settings(BaseSettings):
 
     # DAO Voting (optional). When set, POST /api/v1/dao/vote is enabled.
     dao_voting_contract_address: str = ""
+    dao_vote_relayer_address: str = ""  #  relayer address 
     dao_vote_relayer: str = ""  # Private key for castVote (vote relayer)
 
     @field_validator("database_url", mode="after")

@@ -7,6 +7,9 @@
     "test": "hardhat test",
     "deploy:local": "hardhat run scripts/deploy.js --network localhost",
     "deploy:ganache": "hardhat run scripts/deploy.js --network ganache",
+    "deploy:dao:sepolia": "hardhat run scripts/deployDaoVotingSepolia.js --network sepolia",
+    "proposal:create:local": "hardhat run scripts/createProposal.js --network localhost",
+    "proposal:create:ganache": "hardhat run scripts/createProposal.js --network ganache",
     "node": "hardhat node"
   },
   "devDependencies": {
