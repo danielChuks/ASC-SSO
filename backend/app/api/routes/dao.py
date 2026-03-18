@@ -203,8 +203,13 @@ def cast_dao_vote(body: DaoVoteRequest, db: Session = Depends(get_db)):
     # 6. Submit vote on-chain (serialized to avoid nonce collision)
     try:
         with _cast_vote_lock:
-            tx_hash = client.cast_vote(body.proposal_id, body.vote_choice)
-    except (RuntimeError, ValueError) as e:
+            tx_hash = client.cast_vote(
+                body.proposal_id,
+                body.vote_choice,
+                body.nullifier_hash,
+                b"",
+            )
+    except (RuntimeError, ValueError, Exception) as e:
         db.delete(vote_record)
         db.commit()
         raise HTTPException(status_code=502, detail=f"On-chain vote failed: {e}")

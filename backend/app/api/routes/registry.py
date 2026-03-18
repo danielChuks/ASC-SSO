@@ -6,7 +6,6 @@ from app.config import Settings
 from app.services.idr_contract import IdRContract, is_hmac_commitment
 
 router = APIRouter()
-settings = Settings.load()
 
 
 class RegisterRequest(BaseModel):
@@ -17,6 +16,7 @@ class RegisterRequest(BaseModel):
 
 def _get_idr_client() -> IdRContract:
     """Return IdR contract client. Raises if not configured."""
+    settings = Settings.load()
     if not settings.use_idr_contract:
         raise HTTPException(
             status_code=503,

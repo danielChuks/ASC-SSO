@@ -2,12 +2,25 @@
 import { verifyProof } from "@semaphore-protocol/proof";
 import * as fs from "fs";
 
+function readStdin() {
+  return new Promise((resolve, reject) => {
+    let data = "";
+    process.stdin.setEncoding("utf8");
+    process.stdin.on("data", (chunk) => {
+      data += chunk;
+    });
+    process.stdin.on("end", () => resolve(data));
+    process.stdin.on("error", reject);
+  });
+}
+
 async function main() {
   try {
     const filePath = process.argv[2];
-    if (!filePath) throw new Error("No file path provided");
-
-    const input = fs.readFileSync(filePath, "utf-8");
+    const input = filePath ? fs.readFileSync(filePath, "utf-8") : await readStdin();
+    if (!input || !input.trim()) {
+      throw new Error("No verifier payload provided");
+    }
     const payload = JSON.parse(input);
 
     const semaphoreProof =
