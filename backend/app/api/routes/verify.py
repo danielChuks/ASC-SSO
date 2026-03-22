@@ -130,11 +130,12 @@ def get_nonce(sp_id: str, db: Session = Depends(get_db)):
 
 def _verify_semaphore_proof(proof_json: str, nullifier_hash: str, merkle_root: str, sp_id: str) -> bool:
     import json
-    import subprocess
     import os
+    import subprocess
     import tempfile
-    import shutil 
     from pathlib import Path
+
+    from app.core.semaphore import _get_node_binary
 
     verifier_dir = Path(__file__).resolve().parent.parent.parent.parent / "semaphore-verifier"
     verify_js = verifier_dir / "verify.js"
@@ -157,15 +158,15 @@ def _verify_semaphore_proof(proof_json: str, nullifier_hash: str, merkle_root: s
         "message": "0",
     })
     
-    NODE_PATH = shutil.which("node") or "node"
-    
+    node_bin = _get_node_binary()
+
     fd, tmp_path = tempfile.mkstemp(suffix=".json", text=True)
     with os.fdopen(fd, 'w') as f:
         f.write(payload)
         
     try:
         result = subprocess.run(
-            [NODE_PATH, str(verify_js), tmp_path],
+            [node_bin, str(verify_js), tmp_path],
             capture_output=True,
             text=True,
             cwd=str(verifier_dir),

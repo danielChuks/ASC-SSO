@@ -1,8 +1,0 @@
-{
-  "dependencies": {
-    "@noble/ed25519": "^3.0.0",
-    "@semaphore-protocol/group": "^4.14.2",
-    "@semaphore-protocol/identity": "^4.14.2",
-    "@semaphore-protocol/proof": "^4.14.2"
-  }
-}

@@ -1,7 +1,20 @@
 """Semaphore ZK proof verification via Node.js subprocess."""
 import json
+import os
 import subprocess
 from pathlib import Path
+
+
+def _get_node_binary() -> str:
+    """Resolve Node.js binary path. Use NODE_BINARY env if Python can't find node (e.g. on deploy)."""
+    from app.config import Settings
+
+    s = Settings.load()
+    if s.node_binary:
+        return os.path.expanduser(s.node_binary)
+    import shutil
+
+    return shutil.which("node") or "node"
 
 
 def verify_semaphore_proof(
@@ -24,9 +37,10 @@ def verify_semaphore_proof(
         "scope": scope,
         "message": message,
     })
+    node_bin = _get_node_binary()
     try:
         result = subprocess.run(
-            ["node", str(verify_js)],
+            [node_bin, str(verify_js)],
             input=payload,
             capture_output=True,
             text=True,

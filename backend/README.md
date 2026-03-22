@@ -52,6 +52,13 @@ cd semaphore-verifier
 npm install
 ```
 
+On deployed environments (Render, Railway, etc.), Python's subprocess may not find `node` in PATH. If you get "Invalid ZK proof" and logs show Node subprocess errors, set the absolute path to Node:
+
+```
+NODE_BINARY=/usr/bin/node
+# or with nvm: NODE_BINARY=/home/you/.nvm/versions/node/v22.13.1/bin/node
+```
+
 ## Database
 
 Uses PostgreSQL. Set `DATABASE_URL` in `.env`:

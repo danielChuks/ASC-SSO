@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     eth_rpc_url: str = "http://127.0.0.1:8545"
     idr_deployer_key: str = ""  # Private key for addCommitment (write) transactions
 
+    # Node.js binary for Semaphore ZK verification subprocess.
+    # Set NODE_BINARY to absolute path (e.g. /usr/bin/node or ~/.nvm/versions/node/v22/bin/node)
+    # if Python cannot find node in PATH (common on deployed environments).
+    node_binary: str = ""
+
     # DAO Voting (optional). When set, POST /api/v1/dao/vote is enabled.
     dao_voting_contract_address: str = ""
     dao_vote_relayer_address: str = ""  # Address configured as voteRelayer in contract
