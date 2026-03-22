@@ -167,8 +167,8 @@ rotaion-virtual-hk/
 │   ├── PROBLEM_STATEMENT.md     # ASC/U2SSO requirements
 │   └── TESTING.md               # How to test
 ├── frontend/
-│   ├── shared/crypto/           # Semaphore ZK, Gauth, HKDF
 │   └── master-wallet/           # Next.js app (create identity + login)
+│       └── shared/crypto/       # Semaphore ZK, Gauth, HKDF
 └── readme.md
 ```
 
