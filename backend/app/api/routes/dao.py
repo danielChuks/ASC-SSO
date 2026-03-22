@@ -72,6 +72,8 @@ def list_proposals():
         except Exception:
             # Skip proposal on RPC/connection errors (e.g. mid-loop timeout)
             continue
+    # Newest proposals first (by id descending)
+    result.sort(key=lambda p: p.id, reverse=True)
     return result
 
 
